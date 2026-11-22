@@ -1,0 +1,644 @@
+import React, { useMemo, useState } from 'react';
+import {
+  Plus,
+  ListPlus,
+  Search,
+  ExternalLink,
+  Copy,
+  Check,
+  Pencil,
+  Trash2,
+  X,
+  AlertCircle,
+  ArrowUpRight,
+} from 'lucide-react';
+import { useMedicalArchive } from '../context/MedicalArchiveContext';
+import { DETAILED_SPINE_SEGMENTS } from '../data/spineSegmentsData';
+import { detectAttachmentSource, isValidHttpUrl } from '../data/recordsLocalization';
+import { AttachmentLink, AttachmentSource } from '../types/medical';
+import { ConfirmModal } from './ConfirmModal';
+
+const SOURCE_ORDER: AttachmentSource[] = ['lightshot', 'github', 'cloud', 'other'];
+
+function sourceBadgeClasses(source: AttachmentSource): string {
+  switch (source) {
+    case 'lightshot':
+      return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300';
+    case 'github':
+      return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-300';
+    case 'cloud':
+      return 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300';
+    default:
+      return 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  }
+}
+
+export const LinksArchiveView: React.FC = () => {
+  const {
+    language,
+    t,
+    attachments,
+    records,
+    addAttachment,
+    addAttachmentsBatch,
+    updateAttachment,
+    deleteAttachment,
+    jumpToMriSegment,
+    showToast,
+  } = useMedicalArchive();
+
+  const [search, setSearch] = useState('');
+  const [sourceFilter, setSourceFilter] = useState<'all' | AttachmentSource>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  const [mode, setMode] = useState<'none' | 'single' | 'batch'>('none');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [url, setUrl] = useState('');
+  const [source, setSource] = useState<AttachmentSource>('lightshot');
+  const [date, setDate] = useState('');
+  const [linkedSegment, setLinkedSegment] = useState('');
+  const [linkedRecordId, setLinkedRecordId] = useState('');
+  const [notes, setNotes] = useState('');
+  const [urlError, setUrlError] = useState<string | null>(null);
+
+  const [batchText, setBatchText] = useState('');
+  const [batchError, setBatchError] = useState<string | null>(null);
+
+  const openSingleAdd = () => {
+    setEditingId(null);
+    setTitle('');
+    setUrl('');
+    setSource('lightshot');
+    setDate(new Date().toISOString().slice(0, 10));
+    setLinkedSegment('');
+    setLinkedRecordId('');
+    setNotes('');
+    setUrlError(null);
+    setMode('single');
+  };
+
+  const openEdit = (item: AttachmentLink) => {
+    setEditingId(item.id);
+    setTitle(item.title);
+    setUrl(item.url);
+    setSource(item.source);
+    setDate(item.date);
+    setLinkedSegment(item.linkedSegment);
+    setLinkedRecordId(item.linkedRecordId);
+    setNotes(item.notes);
+    setUrlError(null);
+    setMode('single');
+  };
+
+  const handleUrlChange = (val: string) => {
+    setUrl(val);
+    setUrlError(null);
+    if (val.trim().length > 6) {
+      setSource(detectAttachmentSource(val));
+    }
+  };
+
+  const handleSingleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanUrl = url.trim();
+    if (!isValidHttpUrl(cleanUrl)) {
+      setUrlError(t.archive.invalidUrl);
+      return;
+    }
+    const cleanTitle = title.trim() || cleanUrl.replace(/^https?:\/\//, '').slice(0, 48);
+    const payload = {
+      title: cleanTitle,
+      url: cleanUrl,
+      source,
+      date: date.trim(),
+      linkedSegment,
+      linkedRecordId,
+      notes: notes.trim(),
+    };
+
+    if (editingId) {
+      updateAttachment(editingId, payload);
+    } else {
+      addAttachment(payload);
+    }
+    setMode('none');
+  };
+
+  const handleBatchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setBatchError(null);
+    const lines = batchText
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const parsedItems: Omit<AttachmentLink, 'id'>[] = [];
+    const today = new Date().toISOString().slice(0, 10);
+
+    for (const line of lines) {
+      let itemTitle = '';
+      let itemUrl = line;
+      if (line.includes('|')) {
+        const [left, ...rest] = line.split('|');
+        itemTitle = left.trim();
+        itemUrl = rest.join('|').trim();
+      }
+      if (!isValidHttpUrl(itemUrl)) {
+        setBatchError(`${t.archive.invalidUrl}: "${line}"`);
+        return;
+      }
+      const detected = detectAttachmentSource(itemUrl);
+      parsedItems.push({
+        title:
+          itemTitle ||
+          `${t.archive.sources[detected]} — ${itemUrl.replace(/^https?:\/\//, '').slice(0, 36)}`,
+        url: itemUrl,
+        source: detected,
+        date: today,
+        linkedSegment: '',
+        linkedRecordId: '',
+        notes: '',
+      });
+    }
+
+    if (parsedItems.length === 0) return;
+    addAttachmentsBatch(parsedItems);
+    setBatchText('');
+    setMode('none');
+  };
+
+  const handleCopy = async (item: AttachmentLink) => {
+    try {
+      await navigator.clipboard.writeText(item.url);
+      setCopiedId(item.id);
+      showToast(t.actions.copied, 'success');
+      window.setTimeout(() => setCopiedId((prev) => (prev === item.id ? null : prev)), 1800);
+    } catch {
+      // Clipboard fallback ignored gracefully
+    }
+  };
+
+  const filteredLinks = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return attachments.filter((item) => {
+      if (sourceFilter !== 'all' && item.source !== sourceFilter) return false;
+      if (!q) return true;
+      return (
+        item.title.toLowerCase().includes(q) ||
+        item.url.toLowerCase().includes(q) ||
+        item.linkedSegment.toLowerCase().includes(q) ||
+        item.notes.toLowerCase().includes(q)
+      );
+    });
+  }, [attachments, sourceFilter, search]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: attachments.length };
+    SOURCE_ORDER.forEach((s) => {
+      map[s] = attachments.filter((a) => a.source === s).length;
+    });
+    return map;
+  }, [attachments]);
+
+  const recordTitleById = useMemo(() => {
+    const map = new Map<string, string>();
+    records.forEach((r) => map.set(r.id, r.title[language]));
+    return map;
+  }, [records, language]);
+
+  return (
+    <div className="space-y-6">
+      {/* Section Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-2xl">
+            {t.archive.sectionTitle}
+          </h1>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+            {t.archive.sectionSubtitle}
+          </p>
+        </div>
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setBatchError(null);
+              setMode(mode === 'batch' ? 'none' : 'batch');
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
+          >
+            <ListPlus className="h-3.5 w-3.5" />
+            {t.archive.batchAdd}
+          </button>
+          <button
+            type="button"
+            onClick={openSingleAdd}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700 whitespace-nowrap"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t.archive.addLink}
+          </button>
+        </div>
+      </div>
+
+      {/* Single Add / Edit Form */}
+      {mode === 'single' && (
+        <form
+          onSubmit={handleSingleSubmit}
+          className="rounded-xl border border-sky-200 bg-white p-5 shadow-sm dark:border-cyan-900/70 dark:bg-slate-900"
+        >
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              {editingId ? t.actions.edit : t.archive.addLink}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setMode('none')}
+              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-12">
+            <label className="block sm:col-span-6">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {t.archive.urlLabel} *
+              </span>
+              <input
+                type="url"
+                required
+                value={url}
+                onChange={(e) => handleUrlChange(e.target.value)}
+                placeholder="https://prnt.sc/... or https://github.com/..."
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </label>
+
+            <label className="block sm:col-span-6">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {t.archive.titleLabel}
+              </span>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="L4–L5 SOR 2026 screenshot"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </label>
+
+            <label className="block sm:col-span-3">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {t.archive.sourceLabel}
+              </span>
+              <select
+                value={source}
+                onChange={(e) => setSource(e.target.value as AttachmentSource)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                {SOURCE_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {t.archive.sources[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block sm:col-span-3">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {t.archive.dateLabel}
+              </span>
+              <input
+                type="text"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                placeholder="2026-10-26"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </label>
+
+            <label className="block sm:col-span-3">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {t.archive.segmentLabel}
+              </span>
+              <select
+                value={linkedSegment}
+                onChange={(e) => setLinkedSegment(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                <option value="">{t.archive.noneOption}</option>
+                {DETAILED_SPINE_SEGMENTS.map((seg) => (
+                  <option key={seg.id} value={seg.id}>
+                    {seg.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block sm:col-span-3">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {t.archive.recordLabel}
+              </span>
+              <select
+                value={linkedRecordId}
+                onChange={(e) => setLinkedRecordId(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              >
+                <option value="">{t.archive.noneOption}</option>
+                {records.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.title[language]}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block sm:col-span-12">
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                {t.archive.notesLabel}
+              </span>
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+              />
+            </label>
+          </div>
+
+          {urlError && (
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{urlError}</span>
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('none')}
+              className="rounded-lg border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              {t.actions.cancel}
+            </button>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700"
+            >
+              <Check className="h-3.5 w-3.5" />
+              {t.actions.save}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Batch URL Paste Form */}
+      {mode === 'batch' && (
+        <form
+          onSubmit={handleBatchSubmit}
+          className="rounded-xl border border-sky-200 bg-white p-5 shadow-sm dark:border-cyan-900/70 dark:bg-slate-900"
+        >
+          <div className="flex items-center justify-between border-b border-slate-200 pb-3 dark:border-slate-800">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              {t.archive.batchAdd}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setMode('none')}
+              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="mt-2.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+            {t.archive.batchHint}
+          </p>
+          <textarea
+            rows={5}
+            value={batchText}
+            onChange={(e) => {
+              setBatchText(e.target.value);
+              setBatchError(null);
+            }}
+            placeholder={t.archive.batchPlaceholder}
+            className="mt-3 w-full rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs text-slate-900 focus:border-sky-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+          />
+          {batchError && (
+            <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-300">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>{batchError}</span>
+            </div>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('none')}
+              className="rounded-lg border border-slate-200 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              {t.actions.cancel}
+            </button>
+            <button
+              type="submit"
+              className="rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white hover:bg-sky-700"
+            >
+              {t.archive.batchSubmit}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Empty State or Populated Archive */}
+      {attachments.length === 0 ? (
+        <section className="rounded-xl border border-slate-200/90 bg-white px-6 py-12 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+            {t.archive.emptyTitle}
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            {t.archive.emptyBody}
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+            <button
+              type="button"
+              onClick={openSingleAdd}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t.archive.addLink}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('batch')}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              {t.archive.batchAdd}
+            </button>
+          </div>
+        </section>
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t.archive.searchPlaceholder}
+                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSourceFilter('all')}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+                  sourceFilter === 'all'
+                    ? 'bg-slate-900 text-white dark:bg-cyan-600'
+                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300'
+                }`}
+              >
+                {t.archive.allSources} ({counts.all})
+              </button>
+              {SOURCE_ORDER.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSourceFilter(s)}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+                    sourceFilter === s
+                      ? 'bg-slate-900 text-white dark:bg-cyan-600'
+                      : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300'
+                  }`}
+                >
+                  {t.archive.sources[s]} ({counts[s]})
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="divide-y divide-slate-200 dark:divide-slate-800">
+              {filteredLinks.map((item) => {
+                const linkedRecTitle = item.linkedRecordId
+                  ? recordTitleById.get(item.linkedRecordId)
+                  : null;
+
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40 sm:flex-row sm:items-start sm:justify-between sm:px-5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${sourceBadgeClasses(
+                            item.source,
+                          )}`}
+                        >
+                          {t.archive.sources[item.source]}
+                        </span>
+                        {item.date && <span className="font-mono tabular-nums">{item.date}</span>}
+                        {item.linkedSegment && (
+                          <button
+                            type="button"
+                            onClick={() => jumpToMriSegment(item.linkedSegment)}
+                            className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-800 hover:border-sky-400 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-cyan-300"
+                          >
+                            {item.linkedSegment}
+                            <ArrowUpRight className="h-3 w-3" />
+                          </button>
+                        )}
+                        {linkedRecTitle && (
+                          <span className="truncate text-slate-600 dark:text-slate-300">
+                            · {linkedRecTitle}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        {item.title}
+                      </h3>
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 block truncate font-mono text-xs text-sky-700 hover:underline dark:text-cyan-400"
+                      >
+                        {item.url}
+                      </a>
+                      {item.notes && (
+                        <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                          {item.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-cyan-500 whitespace-nowrap"
+                      >
+                        {t.actions.openExternal}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(item)}
+                        aria-label={t.actions.copyLink}
+                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+                      >
+                        {copiedId === item.id ? (
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openEdit(item)}
+                        aria-label={t.actions.edit}
+                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteTargetId(item.id)}
+                        aria-label={t.actions.delete}
+                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-rose-900 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </>
+      )}
+
+      <ConfirmModal
+        open={Boolean(deleteTargetId)}
+        title={t.archive.deleteConfirmTitle}
+        body={t.archive.deleteConfirmBody}
+        confirmLabel={t.actions.delete}
+        cancelLabel={t.actions.cancel}
+        danger
+        onConfirm={() => {
+          if (deleteTargetId) deleteAttachment(deleteTargetId);
+          setDeleteTargetId(null);
+        }}
+        onCancel={() => setDeleteTargetId(null)}
+      />
+    </div>
+  );
+};

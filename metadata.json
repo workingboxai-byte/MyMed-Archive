@@ -1,0 +1,6 @@
+{
+  "name": "Медкарта — Динаміка МРТ хребта (SOR 2025–2026)",
+  "description": "Персональний медичний архів, 4-зонний анамнез, інтерактивна 16-сегментна динаміка МРТ хребта (SOR 2025–2026), реєстр обстежень, архів посилань Lightshot/GitHub та друкована виписка для лікаря.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
