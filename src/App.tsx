@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import {
   Activity,
+  Box,
   FileText,
   FolderGit2,
   Stethoscope,
@@ -25,9 +26,12 @@ import { DoctorView } from './components/DoctorView';
 import { JsonArchiveModal } from './components/JsonArchiveModal';
 import { Language, NavSection } from './types/medical';
 
+const Atlas3DView = lazy(() => import('./components/Atlas3DView'));
+
 const NAV_ITEMS: { id: NavSection; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'anamnesis', icon: UserRound },
   { id: 'mri', icon: Activity },
+  { id: 'atlas3d', icon: Box },
   { id: 'records', icon: FileText },
   { id: 'archive', icon: FolderGit2 },
   { id: 'doctor', icon: Stethoscope },
@@ -65,6 +69,21 @@ const AppShell: React.FC = () => {
         return <AnamnesisView />;
       case 'mri':
         return <MriDynamicsView />;
+      case 'atlas3d':
+        return (
+          <Suspense
+            fallback={
+              <div className="flex min-h-[460px] flex-col items-center justify-center gap-3 rounded-xl border border-slate-200/90 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <Box className="h-8 w-8 text-sky-600 dark:text-cyan-400" />
+                <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                  {t.atlas3d.loadingEngine}
+                </div>
+              </div>
+            }
+          >
+            <Atlas3DView />
+          </Suspense>
+        );
       case 'records':
         return <OtherRecordsView />;
       case 'archive':
@@ -76,6 +95,7 @@ const AppShell: React.FC = () => {
 
   const getCountHint = (id: NavSection): string | null => {
     if (id === 'mri') return '16';
+    if (id === 'atlas3d') return '3D';
     if (id === 'records') return String(records.length);
     if (id === 'archive') return String(attachments.length);
     return null;

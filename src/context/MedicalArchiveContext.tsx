@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
+  AtlasSceneMode,
   AttachmentLink,
   ComplaintZone,
   ComplaintZoneKey,
@@ -50,6 +51,10 @@ interface MedicalArchiveContextValue {
   selectedMriSegment: string;
   setSelectedMriSegment: (segmentId: string) => void;
   jumpToMriSegment: (segmentId: string) => void;
+  atlas3dScene: AtlasSceneMode;
+  setAtlas3dScene: (scene: AtlasSceneMode) => void;
+  atlasFocusNonce: number;
+  jumpTo3DAtlasSegment: (segmentId: string) => void;
   meta: RawMedicalCardJson['meta'];
   profile: PatientProfile;
   complaints: Record<ComplaintZoneKey, ComplaintZone>;
@@ -140,6 +145,8 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
 
   const [activeSection, setActiveSection] = useState<NavSection>('mri');
   const [selectedMriSegment, setSelectedMriSegment] = useState<string>('L4-L5');
+  const [atlas3dScene, setAtlas3dScene] = useState<AtlasSceneMode>('spine');
+  const [atlasFocusNonce, setAtlasFocusNonce] = useState<number>(0);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const [state, setState] = useState<StoredState>(() => {
@@ -223,6 +230,14 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
   const jumpToMriSegment = useCallback((segmentId: string) => {
     setSelectedMriSegment(segmentId);
     setActiveSection('mri');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const jumpTo3DAtlasSegment = useCallback((segmentId: string) => {
+    setSelectedMriSegment(segmentId);
+    setAtlas3dScene('spine');
+    setAtlasFocusNonce((n) => n + 1);
+    setActiveSection('atlas3d');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -403,6 +418,10 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     selectedMriSegment,
     setSelectedMriSegment,
     jumpToMriSegment,
+    atlas3dScene,
+    setAtlas3dScene,
+    atlasFocusNonce,
+    jumpTo3DAtlasSegment,
     meta: state.rawMeta,
     profile: state.profile,
     complaints: state.complaints,

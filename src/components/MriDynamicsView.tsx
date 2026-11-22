@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { Box, ExternalLink } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import {
   DETAILED_SPINE_SEGMENTS,
@@ -68,6 +68,7 @@ export const MriDynamicsView: React.FC = () => {
     sorMeta,
     selectedMriSegment,
     setSelectedMriSegment,
+    jumpTo3DAtlasSegment,
     attachments,
   } = useMedicalArchive();
 
@@ -307,16 +308,27 @@ export const MriDynamicsView: React.FC = () => {
                 </h2>
               </div>
 
-              <div className="font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400">
-                {selectedSegment.metrics.canalSagittal2025 !== null &&
-                  selectedSegment.metrics.canalSagittal2026 !== null && (
-                    <span>
-                      {t.mri.canalLabel} {selectedSegment.metrics.canalSagittal2025} →{' '}
-                      <strong className="text-slate-900 dark:text-slate-100">
-                        {selectedSegment.metrics.canalSagittal2026} {t.mri.chartMmUnit}
-                      </strong>
-                    </span>
-                  )}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                  {selectedSegment.metrics.canalSagittal2025 !== null &&
+                    selectedSegment.metrics.canalSagittal2026 !== null && (
+                      <span>
+                        {t.mri.canalLabel} {selectedSegment.metrics.canalSagittal2025} →{' '}
+                        <strong className="text-slate-900 dark:text-slate-100">
+                          {selectedSegment.metrics.canalSagittal2026} {t.mri.chartMmUnit}
+                        </strong>
+                      </span>
+                    )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => jumpTo3DAtlasSegment(selectedSegment.id)}
+                  title={`${t.nav.atlas3d}: ${selectedSegment.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 dark:border-cyan-800/80 dark:bg-cyan-950/50 dark:text-cyan-300 dark:hover:border-cyan-600 dark:hover:bg-cyan-950"
+                >
+                  <Box className="h-3.5 w-3.5" />
+                  <span>{t.actions.openIn3D}</span>
+                </button>
               </div>
             </div>
 
@@ -510,6 +522,7 @@ export const MriDynamicsView: React.FC = () => {
                 <th className="px-3 py-2.5 font-semibold">{t.mri.col2026}</th>
                 <th className="px-3 py-2.5 font-semibold">{t.mri.colCanalRoots}</th>
                 <th className="px-3 py-2.5 font-semibold whitespace-nowrap">{t.mri.colDynamics}</th>
+                <th className="px-3 py-2.5 text-right font-semibold whitespace-nowrap">3D</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
@@ -549,6 +562,20 @@ export const MriDynamicsView: React.FC = () => {
                         <span aria-hidden="true">{badge.glyph}</span>
                         <span>{seg.statusLabel[language]}</span>
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          jumpTo3DAtlasSegment(seg.id);
+                        }}
+                        title={`${t.nav.atlas3d}: ${seg.id}`}
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-800 dark:text-cyan-300 dark:hover:border-cyan-600"
+                      >
+                        <Box className="h-3 w-3" />
+                        <span>{t.actions.openIn3D}</span>
+                      </button>
                     </td>
                   </tr>
                 );

@@ -3,9 +3,13 @@ export type Language = 'uk' | 'ru' | 'en';
 export type NavSection =
   | 'anamnesis'
   | 'mri'
+  | 'atlas3d'
   | 'records'
   | 'archive'
   | 'doctor';
+
+export type AtlasSceneMode = 'spine' | 'brain';
+export type AtlasCameraPreset = 'front' | 'side' | 'back' | 'reset';
 
 export type SpineRegion = 'cervical' | 'thoracic' | 'lumbar';
 export type RegionFilter = 'all' | SpineRegion;

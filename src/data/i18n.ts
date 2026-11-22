@@ -24,6 +24,7 @@ export interface UiDictionary {
     close: string;
     confirm: string;
     viewInMri: string;
+    openIn3D: string;
     privacyMode: string;
     privacyActive: string;
     themeLight: string;
@@ -189,15 +190,47 @@ export interface UiDictionary {
     savedToast: string;
     deletedToast: string;
   };
+  atlas3d: {
+    sectionTitle: string;
+    sectionSubtitle: string;
+    sceneSpine: string;
+    sceneBrain: string;
+    segmentsTitle: string;
+    brainPointsTitle: string;
+    layersTitle: string;
+    layerVertebrae: string;
+    layerDiscs: string;
+    layerMuscles: string;
+    layerHemispheres: string;
+    layerVessels: string;
+    layerMarkers: string;
+    viewFront: string;
+    viewSide: string;
+    viewBack: string;
+    viewReset: string;
+    orbitHint: string;
+    loadingEngine: string;
+    modelModeProcedural: string;
+    modelModeGlb: string;
+    cardProtrusion: string;
+    cardCanal: string;
+    cardStatus: string;
+    cardOpenMri: string;
+    cardLocation: string;
+    cardCategory: string;
+    attribution: string;
+    trapeziusBadge: string;
+  };
 }
 
 export const UI_DICT: Record<Language, UiDictionary> = {
   uk: {
-    appBrand: 'Медкарта • МРТ',
+    appBrand: 'MyMed Archive',
     patientShort: 'Пацієнт (1980)',
     nav: {
       anamnesis: 'Анамнез і профіль',
       mri: 'Динаміка МРТ (SOR)',
+      atlas3d: '3D-атлас',
       records: 'Обстеження і виписки',
       archive: 'Архів посилань',
       doctor: 'Режим для лікаря',
@@ -205,6 +238,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
     navSub: {
       anamnesis: 'Базові дані та 4 зони скарг',
       mri: '16 сегментів • 2025 vs 2026',
+      atlas3d: 'Хребет, м’язи та головний мозок',
       records: 'Реєстр досліджень та УЗД',
       archive: 'Lightshot / GitHub / DICOM',
       doctor: 'Зведена виписка A4 / PDF',
@@ -228,6 +262,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       close: 'Закрити',
       confirm: 'Підтвердити',
       viewInMri: 'Показати на МРТ',
+      openIn3D: '3D',
       privacyMode: 'Режим приватності',
       privacyActive: 'ПІБ та місто приховано',
       themeLight: 'Світла тема',
@@ -412,14 +447,46 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       savedToast: 'Зміни збережено локально',
       deletedToast: 'Запис видалено',
     },
+    atlas3d: {
+      sectionTitle: '3D-атлас анатомії та знахідок МРТ',
+      sectionSubtitle: 'Інтерактивний просторовий огляд сегментів хребта (SOR 2025–2026), м’язів плечового пояса та ключових зон головного мозку',
+      sceneSpine: 'Хребет і м’язи',
+      sceneBrain: 'Головний мозок і судини',
+      segmentsTitle: 'Сегменти хребта (16 рівнів)',
+      brainPointsTitle: 'Ключові точки МРТ мозку',
+      layersTitle: 'Шари моделі',
+      layerVertebrae: 'Хребці (C1–S1)',
+      layerDiscs: 'Міжхребцеві диски',
+      layerMuscles: 'М’язи спини / трапеція справа',
+      layerHemispheres: 'Півкулі мозку',
+      layerVessels: 'Судини та зорові нерви',
+      layerMarkers: 'Клінічні маркери',
+      viewFront: 'Спереду',
+      viewSide: 'Збоку',
+      viewBack: 'Ззаду',
+      viewReset: 'Скинути',
+      orbitHint: 'ЛКМ — обертання · Колесо — зум · Клік по маркеру/диску — фокус',
+      loadingEngine: 'Завантаження 3D-двигуна…',
+      modelModeProcedural: 'Процедурна 3D-анатомія',
+      modelModeGlb: 'GLB-модель',
+      cardProtrusion: 'Випинання',
+      cardCanal: 'Саг. канал',
+      cardStatus: 'Динаміка',
+      cardOpenMri: 'Протокол SOR',
+      cardLocation: 'Локалізація',
+      cardCategory: 'Тип знахідки',
+      attribution: '3D anatomy reference: Z-Anatomy / BodyParts3D (CC-BY-SA 4.0)',
+      trapeziusBadge: 'Зміна сигналу верхньої трапеції справа (SOR 2026)',
+    },
   },
 
   ru: {
-    appBrand: 'Медкарта • МРТ',
+    appBrand: 'MyMed Archive',
     patientShort: 'Пациент (1980)',
     nav: {
       anamnesis: 'Анамнез и профиль',
       mri: 'Динамика МРТ (SOR)',
+      atlas3d: '3D-атлас',
       records: 'Обследования и выписки',
       archive: 'Архив ссылок',
       doctor: 'Режим для врача',
@@ -427,6 +494,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
     navSub: {
       anamnesis: 'Базовые данные и 4 зоны жалоб',
       mri: '16 сегментов • 2025 vs 2026',
+      atlas3d: 'Позвоночник, мышцы и мозг',
       records: 'Реестр исследований и УЗИ',
       archive: 'Lightshot / GitHub / DICOM',
       doctor: 'Сводная выписка A4 / PDF',
@@ -450,6 +518,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       close: 'Закрыть',
       confirm: 'Подтвердить',
       viewInMri: 'Показать на МРТ',
+      openIn3D: '3D',
       privacyMode: 'Режим приватности',
       privacyActive: 'ФИО и город скрыты',
       themeLight: 'Светлая тема',
@@ -634,14 +703,46 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       savedToast: 'Изменения сохранены локально',
       deletedToast: 'Запись удалена',
     },
+    atlas3d: {
+      sectionTitle: '3D-атлас анатомии и находок МРТ',
+      sectionSubtitle: 'Интерактивный пространственный обзор сегментов позвоночника (SOR 2025–2026), мышц плечевого пояса и ключевых зон головного мозга',
+      sceneSpine: 'Позвоночник и мышцы',
+      sceneBrain: 'Головной мозг и сосуды',
+      segmentsTitle: 'Сегменты позвоночника (16 уровней)',
+      brainPointsTitle: 'Ключевые точки МРТ мозга',
+      layersTitle: 'Слои модели',
+      layerVertebrae: 'Позвонки (C1–S1)',
+      layerDiscs: 'Межпозвонковые диски',
+      layerMuscles: 'Мышцы спины / трапеция справа',
+      layerHemispheres: 'Полушария мозга',
+      layerVessels: 'Сосуды и зрительные нервы',
+      layerMarkers: 'Клинические маркеры',
+      viewFront: 'Спереди',
+      viewSide: 'Сбоку',
+      viewBack: 'Сзади',
+      viewReset: 'Сбросить',
+      orbitHint: 'ЛКМ — вращение · Колесо — зум · Клик по маркеру/диску — фокус',
+      loadingEngine: 'Загрузка 3D-движка…',
+      modelModeProcedural: 'Процедурная 3D-анатомия',
+      modelModeGlb: 'GLB-модель',
+      cardProtrusion: 'Выпячивание',
+      cardCanal: 'Саг. канал',
+      cardStatus: 'Динамика',
+      cardOpenMri: 'Протокол SOR',
+      cardLocation: 'Локализация',
+      cardCategory: 'Тип находки',
+      attribution: '3D anatomy reference: Z-Anatomy / BodyParts3D (CC-BY-SA 4.0)',
+      trapeziusBadge: 'Изменение сигнала верхней трапеции справа (SOR 2026)',
+    },
   },
 
   en: {
-    appBrand: 'MedCard • MRI',
+    appBrand: 'MyMed Archive',
     patientShort: 'Patient (1980)',
     nav: {
       anamnesis: 'Anamnesis & Profile',
       mri: 'Spine MRI (SOR)',
+      atlas3d: '3D Atlas',
       records: 'Exams & Discharges',
       archive: 'Links Archive',
       doctor: 'Doctor View',
@@ -649,6 +750,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
     navSub: {
       anamnesis: 'Baseline data & 4 symptom zones',
       mri: '16 segments • 2025 vs 2026',
+      atlas3d: 'Spine, muscles & brain vessels',
       records: 'Prior MRI, ultrasound & labs',
       archive: 'Lightshot / GitHub / DICOM',
       doctor: 'Printable A4 / PDF summary',
@@ -672,6 +774,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       close: 'Close',
       confirm: 'Confirm',
       viewInMri: 'Inspect on MRI',
+      openIn3D: '3D',
       privacyMode: 'Privacy Mode',
       privacyActive: 'Name & location masked',
       themeLight: 'Light theme',
@@ -855,6 +958,37 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       resetSuccess: 'Restored anonymized baseline',
       savedToast: 'Changes saved locally',
       deletedToast: 'Item removed',
+    },
+    atlas3d: {
+      sectionTitle: '3D Anatomy & MRI Findings Atlas',
+      sectionSubtitle: 'Interactive spatial overview of spine segments (SOR 2025–2026), right shoulder musculature, and key brain MRI landmarks',
+      sceneSpine: 'Spine & Muscles',
+      sceneBrain: 'Brain & Vessels',
+      segmentsTitle: 'Spine Segments (16 levels)',
+      brainPointsTitle: 'Key Brain MRI Landmarks',
+      layersTitle: 'Model Layers',
+      layerVertebrae: 'Vertebrae (C1–S1)',
+      layerDiscs: 'Intervertebral Discs',
+      layerMuscles: 'Back Muscles / Right Trapezius',
+      layerHemispheres: 'Cerebral Hemispheres',
+      layerVessels: 'Vessels & Optic Nerves',
+      layerMarkers: 'Clinical Markers',
+      viewFront: 'Front',
+      viewSide: 'Side',
+      viewBack: 'Back',
+      viewReset: 'Reset',
+      orbitHint: 'Drag to rotate · Scroll to zoom · Click disc/marker to focus',
+      loadingEngine: 'Loading 3D engine…',
+      modelModeProcedural: 'Procedural 3D Anatomy',
+      modelModeGlb: 'GLB Model',
+      cardProtrusion: 'Protrusion',
+      cardCanal: 'Sag. Canal',
+      cardStatus: 'Dynamics',
+      cardOpenMri: 'SOR Protocol',
+      cardLocation: 'Localization',
+      cardCategory: 'Finding Type',
+      attribution: '3D anatomy reference: Z-Anatomy / BodyParts3D (CC-BY-SA 4.0)',
+      trapeziusBadge: 'Right upper trapezius signal change (SOR 2026)',
     },
   },
 };
