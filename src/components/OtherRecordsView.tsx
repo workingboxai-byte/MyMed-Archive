@@ -1,8 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Plus, Pencil, Trash2, ArrowUpDown, X, Check, Link2 } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  Pencil,
+  Trash2,
+  ArrowUpDown,
+  X,
+  Check,
+  Link2,
+  ExternalLink,
+} from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
-import { MedicalExamRecord, RecordCategory } from '../types/medical';
-import { extractSortDate } from '../data/recordsLocalization';
+import { AttachmentLink, MedicalExamRecord, RecordCategory } from '../types/medical';
+import { extractSortDate, getAttachmentUrls } from '../data/recordsLocalization';
 import { ConfirmModal } from './ConfirmModal';
 
 const CATEGORY_ORDER: RecordCategory[] = ['mri', 'ultrasound', 'discharge', 'lab', 'other'];
@@ -47,11 +57,13 @@ export const OtherRecordsView: React.FC = () => {
 
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
-  const attachmentCountByRecord = useMemo(() => {
-    const map = new Map<string, number>();
+  const attachmentsByRecord = useMemo(() => {
+    const map = new Map<string, AttachmentLink[]>();
     attachments.forEach((a) => {
       if (a.linkedRecordId) {
-        map.set(a.linkedRecordId, (map.get(a.linkedRecordId) || 0) + 1);
+        const list = map.get(a.linkedRecordId) || [];
+        list.push(a);
+        map.set(a.linkedRecordId, list);
       }
     });
     return map;
@@ -321,7 +333,17 @@ export const OtherRecordsView: React.FC = () => {
         ) : (
           <div className="divide-y divide-slate-200 dark:divide-slate-800">
             {filteredRecords.map((rec) => {
-              const linkedCount = attachmentCountByRecord.get(rec.id) || 0;
+              const linkedAttachments = attachmentsByRecord.get(rec.id) || [];
+              const linkedUrlEntries = linkedAttachments.flatMap((att) => {
+                const urls = getAttachmentUrls(att);
+                return urls.map((linkUrl, idx) => ({
+                  key: `${att.id}:${idx}`,
+                  title: att.title,
+                  url: linkUrl,
+                  pageNumber: urls.length > 1 ? idx + 1 : null,
+                }));
+              });
+
               return (
                 <div
                   key={rec.id}
@@ -337,7 +359,7 @@ export const OtherRecordsView: React.FC = () => {
                         {t.records.categories[rec.category]}
                       </span>
                       <span className="font-mono tabular-nums">{rec.date}</span>
-                      {linkedCount > 0 && (
+                      {linkedUrlEntries.length > 0 && (
                         <>
                           <span aria-hidden="true">·</span>
                           <button
@@ -346,7 +368,7 @@ export const OtherRecordsView: React.FC = () => {
                             className="inline-flex items-center gap-1 font-medium text-sky-700 hover:underline dark:text-cyan-400"
                           >
                             <Link2 className="h-3 w-3" />
-                            {t.records.linkedFiles} {linkedCount}
+                            {t.records.linkedFiles} {linkedUrlEntries.length}
                           </button>
                         </>
                       )}
@@ -365,9 +387,34 @@ export const OtherRecordsView: React.FC = () => {
                         {t.records.noNotes}
                       </p>
                     )}
+
+                    {linkedUrlEntries.length > 0 && (
+                      <div className="mt-2.5 space-y-1.5 border-t border-slate-100 pt-2.5 dark:border-slate-800/80">
+                        {linkedUrlEntries.map((entry) => (
+                          <a
+                            key={entry.key}
+                            href={entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group flex items-center gap-2 rounded-md border border-slate-200/80 bg-slate-50/75 px-2.5 py-1.5 text-xs text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-50/80 dark:border-slate-800 dark:bg-slate-800/50 dark:text-cyan-400 dark:hover:border-cyan-600/70 dark:hover:bg-slate-800"
+                          >
+                            <Link2 className="h-3.5 w-3.5 shrink-0 text-slate-400 transition-colors group-hover:text-sky-600 dark:text-slate-500 dark:group-hover:text-cyan-400" />
+                            <span className="min-w-0 flex-1 truncate font-medium">
+                              {entry.title}
+                            </span>
+                            {entry.pageNumber !== null && (
+                              <span className="shrink-0 rounded bg-slate-200/80 px-1.5 py-0.5 font-mono text-[10.5px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                                {t.archive.pagePrefix} {entry.pageNumber}
+                              </span>
+                            )}
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-75 transition-opacity group-hover:opacity-100" />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
+                  <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-start">
                     <button
                       type="button"
                       onClick={() => openEditForm(rec)}

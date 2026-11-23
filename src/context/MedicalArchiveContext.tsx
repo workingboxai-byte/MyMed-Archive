@@ -12,6 +12,7 @@ import {
 } from '../types/medical';
 import {
   ANONYMIZED_DEFAULT_MEDICAL_CARD,
+  getAttachmentUrls,
   normalizeAttachmentSource,
   parseOtherRecordsIndex,
 } from '../data/recordsLocalization';
@@ -87,16 +88,21 @@ function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
       : parseOtherRecordsIndex(Array.isArray(raw.other_records_index) ? raw.other_records_index : []);
 
   const attachments: AttachmentLink[] = Array.isArray(raw.attachments_and_links)
-    ? raw.attachments_and_links.map((item, idx) => ({
-        id: item.id || `att-${Date.now()}-${idx}`,
-        title: item.title || item.url || 'Link',
-        url: item.url || '',
-        source: normalizeAttachmentSource(item.source, item.url),
-        date: item.date || '',
-        linkedSegment: item.linkedSegment || '',
-        linkedRecordId: item.linkedRecordId || '',
-        notes: item.notes || '',
-      }))
+    ? raw.attachments_and_links.map((item, idx) => {
+        const urls = getAttachmentUrls(item);
+        const primaryUrl = urls[0] || '';
+        return {
+          id: item.id || `att-${Date.now()}-${idx}`,
+          title: item.title || primaryUrl || 'Link',
+          url: primaryUrl,
+          urls,
+          source: normalizeAttachmentSource(item.source, primaryUrl, urls),
+          date: item.date || '',
+          linkedSegment: item.linkedSegment || '',
+          linkedRecordId: item.linkedRecordId || '',
+          notes: item.notes || '',
+        };
+      })
     : [];
 
   return {
@@ -159,10 +165,16 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
           return {
             ...parsed,
             attachments: Array.isArray(parsed.attachments)
-              ? parsed.attachments.map((item) => ({
-                  ...item,
-                  source: normalizeAttachmentSource(item.source, item.url),
-                }))
+              ? parsed.attachments.map((item) => {
+                  const urls = getAttachmentUrls(item);
+                  const primaryUrl = urls[0] || '';
+                  return {
+                    ...item,
+                    url: primaryUrl,
+                    urls,
+                    source: normalizeAttachmentSource(item.source, primaryUrl, urls),
+                  };
+                })
               : [],
           };
         }

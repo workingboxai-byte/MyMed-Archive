@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Plus,
   ListPlus,
@@ -16,8 +16,10 @@ import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import { DETAILED_SPINE_SEGMENTS } from '../data/spineSegmentsData';
 import {
   detectAttachmentSource,
+  getAttachmentUrls,
   isValidHttpUrl,
   normalizeAttachmentSource,
+  parseAttachmentUrlsInput,
 } from '../data/recordsLocalization';
 import { AttachmentLink, AttachmentSource } from '../types/medical';
 import { ConfirmModal } from './ConfirmModal';
@@ -53,7 +55,7 @@ export const LinksArchiveView: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [sourceFilter, setSourceFilter] = useState<'all' | AttachmentSource>('all');
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const [mode, setMode] = useState<'none' | 'single' | 'batch'>('none');
@@ -70,6 +72,16 @@ export const LinksArchiveView: React.FC = () => {
   const [batchText, setBatchText] = useState('');
   const [batchError, setBatchError] = useState<string | null>(null);
 
+  const urlTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    if (mode !== 'single') return;
+    const el = urlTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(84, el.scrollHeight)}px`;
+  }, [url, mode]);
+
   const openSingleAdd = () => {
     setEditingId(null);
     setTitle('');
@@ -84,10 +96,11 @@ export const LinksArchiveView: React.FC = () => {
   };
 
   const openEdit = (item: AttachmentLink) => {
+    const itemUrls = getAttachmentUrls(item);
     setEditingId(item.id);
     setTitle(item.title);
-    setUrl(item.url);
-    setSource(normalizeAttachmentSource(item.source, item.url));
+    setUrl(itemUrls.join('\n'));
+    setSource(normalizeAttachmentSource(item.source, item.url, itemUrls));
     setDate(item.date);
     setLinkedSegment(item.linkedSegment);
     setLinkedRecordId(item.linkedRecordId);
@@ -99,9 +112,10 @@ export const LinksArchiveView: React.FC = () => {
   const handleUrlChange = (val: string) => {
     setUrl(val);
     setUrlError(null);
-    if (val.trim().length > 6) {
-      const detected = detectAttachmentSource(val);
-      if (detected !== 'other' || isValidHttpUrl(val)) {
+    const firstUrl = parseAttachmentUrlsInput(val)[0] || '';
+    if (firstUrl.length > 6) {
+      const detected = detectAttachmentSource(firstUrl);
+      if (detected !== 'other' || isValidHttpUrl(firstUrl)) {
         setSource(detected);
       }
     }
@@ -109,15 +123,29 @@ export const LinksArchiveView: React.FC = () => {
 
   const handleSingleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanUrl = url.trim();
-    if (!isValidHttpUrl(cleanUrl)) {
+    const parsedUrls = parseAttachmentUrlsInput(url);
+    if (parsedUrls.length === 0) {
       setUrlError(t.archive.invalidUrl);
       return;
     }
-    const cleanTitle = title.trim() || cleanUrl.replace(/^https?:\/\//, '').slice(0, 48);
+
+    for (const candidate of parsedUrls) {
+      if (!isValidHttpUrl(candidate)) {
+        setUrlError(
+          parsedUrls.length > 1
+            ? `${t.archive.invalidUrl}: "${candidate}"`
+            : t.archive.invalidUrl,
+        );
+        return;
+      }
+    }
+
+    const primaryUrl = parsedUrls[0];
+    const cleanTitle = title.trim() || primaryUrl.replace(/^https?:\/\//, '').slice(0, 48);
     const payload = {
       title: cleanTitle,
-      url: cleanUrl,
+      url: primaryUrl,
+      urls: parsedUrls,
       source,
       date: date.trim(),
       linkedSegment,
@@ -162,6 +190,7 @@ export const LinksArchiveView: React.FC = () => {
           itemTitle ||
           `${t.archive.sources[detected]} — ${itemUrl.replace(/^https?:\/\//, '').slice(0, 36)}`,
         url: itemUrl,
+        urls: [itemUrl],
         source: detected,
         date: today,
         linkedSegment: '',
@@ -176,12 +205,12 @@ export const LinksArchiveView: React.FC = () => {
     setMode('none');
   };
 
-  const handleCopy = async (item: AttachmentLink) => {
+  const handleCopy = async (key: string, targetUrl: string) => {
     try {
-      await navigator.clipboard.writeText(item.url);
-      setCopiedId(item.id);
+      await navigator.clipboard.writeText(targetUrl);
+      setCopiedKey(key);
       showToast(t.actions.copied, 'success');
-      window.setTimeout(() => setCopiedId((prev) => (prev === item.id ? null : prev)), 1800);
+      window.setTimeout(() => setCopiedKey((prev) => (prev === key ? null : prev)), 1800);
     } catch {
       // Clipboard fallback ignored gracefully
     }
@@ -189,10 +218,15 @@ export const LinksArchiveView: React.FC = () => {
 
   const normalizedAttachments = useMemo(
     () =>
-      attachments.map((item) => ({
-        ...item,
-        source: normalizeAttachmentSource(item.source, item.url),
-      })),
+      attachments.map((item) => {
+        const itemUrls = getAttachmentUrls(item);
+        return {
+          ...item,
+          url: itemUrls[0] || item.url,
+          urls: itemUrls,
+          source: normalizeAttachmentSource(item.source, item.url, itemUrls),
+        };
+      }),
     [attachments],
   );
 
@@ -204,6 +238,7 @@ export const LinksArchiveView: React.FC = () => {
       return (
         item.title.toLowerCase().includes(q) ||
         item.url.toLowerCase().includes(q) ||
+        item.urls.some((u) => u.toLowerCase().includes(q)) ||
         item.linkedSegment.toLowerCase().includes(q) ||
         item.notes.toLowerCase().includes(q)
       );
@@ -280,21 +315,22 @@ export const LinksArchiveView: React.FC = () => {
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-12">
-            <label className="block sm:col-span-6">
+            <label className="block sm:col-span-12">
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 {t.archive.urlLabel} *
               </span>
-              <input
-                type="url"
+              <textarea
+                ref={urlTextareaRef}
                 required
+                rows={3}
                 value={url}
                 onChange={(e) => handleUrlChange(e.target.value)}
                 placeholder={t.archive.urlPlaceholder}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="mt-1 min-h-[84px] w-full resize-y overflow-y-auto rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs leading-relaxed text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               />
             </label>
 
-            <label className="block sm:col-span-6">
+            <label className="block sm:col-span-12">
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 {t.archive.titleLabel}
               </span>
@@ -544,96 +580,125 @@ export const LinksArchiveView: React.FC = () => {
                 const linkedRecTitle = item.linkedRecordId
                   ? recordTitleById.get(item.linkedRecordId)
                   : null;
+                const itemUrls = item.urls.length > 0 ? item.urls : item.url ? [item.url] : [];
 
                 return (
                   <div
                     key={item.id}
-                    className="flex flex-col gap-3 px-4 py-4 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40 sm:flex-row sm:items-start sm:justify-between sm:px-5"
+                    className="px-4 py-4 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40 sm:px-5"
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        <span
-                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${sourceBadgeClasses(
-                            item.source,
-                          )}`}
-                        >
-                          {t.archive.sources[item.source]}
-                        </span>
-                        {item.date && <span className="font-mono tabular-nums">{item.date}</span>}
-                        {item.linkedSegment && (
-                          <button
-                            type="button"
-                            onClick={() => jumpToMriSegment(item.linkedSegment)}
-                            className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-800 hover:border-sky-400 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-cyan-300"
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${sourceBadgeClasses(
+                              item.source,
+                            )}`}
                           >
-                            {item.linkedSegment}
-                            <ArrowUpRight className="h-3 w-3" />
-                          </button>
-                        )}
-                        {linkedRecTitle && (
-                          <span className="truncate text-slate-600 dark:text-slate-300">
-                            · {linkedRecTitle}
+                            {t.archive.sources[item.source]}
                           </span>
-                        )}
+                          {item.date && <span className="font-mono tabular-nums">{item.date}</span>}
+                          {item.linkedSegment && (
+                            <button
+                              type="button"
+                              onClick={() => jumpToMriSegment(item.linkedSegment)}
+                              className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-800 hover:border-sky-400 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-cyan-300"
+                            >
+                              {item.linkedSegment}
+                              <ArrowUpRight className="h-3 w-3" />
+                            </button>
+                          )}
+                          {linkedRecTitle && (
+                            <span className="truncate text-slate-600 dark:text-slate-300">
+                              · {linkedRecTitle}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
+                          {item.title}
+                        </h3>
                       </div>
 
-                      <h3 className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                        {item.title}
-                      </h3>
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-0.5 block truncate font-mono text-xs text-sky-700 hover:underline dark:text-cyan-400"
-                      >
-                        {item.url}
-                      </a>
-                      {item.notes && (
-                        <p className="mt-1 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
-                          {item.notes}
-                        </p>
-                      )}
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => openEdit(item)}
+                          aria-label={t.actions.edit}
+                          className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTargetId(item.id)}
+                          aria-label={t.actions.delete}
+                          className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-rose-900 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-cyan-500 whitespace-nowrap"
-                      >
-                        {t.actions.openExternal}
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(item)}
-                        aria-label={t.actions.copyLink}
-                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
-                      >
-                        {copiedId === item.id ? (
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openEdit(item)}
-                        aria-label={t.actions.edit}
-                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-100"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTargetId(item.id)}
-                        aria-label={t.actions.delete}
-                        className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-rose-900 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    {itemUrls.length > 0 && (
+                      <div className="mt-2.5 space-y-1.5">
+                        {itemUrls.map((linkUrl, idx) => {
+                          const rowKey = `${item.id}:${idx}`;
+                          return (
+                            <div
+                              key={rowKey}
+                              className="flex flex-col gap-2 rounded-lg border border-slate-200/80 bg-slate-50/70 px-3 py-2 dark:border-slate-800 dark:bg-slate-800/50 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
+                                {itemUrls.length > 1 && (
+                                  <span className="shrink-0 rounded bg-slate-200/80 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
+                                    {t.archive.pagePrefix} {idx + 1}
+                                  </span>
+                                )}
+                                <a
+                                  href={linkUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="min-w-0 flex-1 truncate font-mono text-xs text-sky-700 hover:underline dark:text-cyan-400"
+                                >
+                                  {linkUrl}
+                                </a>
+                              </div>
+
+                              <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-center">
+                                <a
+                                  href={linkUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 transition-colors hover:border-sky-300 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-cyan-500 whitespace-nowrap"
+                                >
+                                  {t.actions.openExternal}
+                                  <ExternalLink className="h-3 w-3" />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(rowKey, linkUrl)}
+                                  aria-label={t.actions.copyLink}
+                                  className="rounded-md border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                                >
+                                  {copiedKey === rowKey ? (
+                                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                  ) : (
+                                    <Copy className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {item.notes && (
+                      <p className="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                        {item.notes}
+                      </p>
+                    )}
                   </div>
                 );
               })}

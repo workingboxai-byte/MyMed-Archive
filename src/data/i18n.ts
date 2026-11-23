@@ -143,6 +143,7 @@ export interface UiDictionary {
     titlePlaceholder: string;
     urlLabel: string;
     urlPlaceholder: string;
+    pagePrefix: string;
     sourceLabel: string;
     dateLabel: string;
     segmentLabel: string;
@@ -405,7 +406,8 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       titleLabel: 'Назва матеріалу',
       titlePlaceholder: 'Протокол МРТ SOR 2026 (PDF)',
       urlLabel: 'Посилання (URL)',
-      urlPlaceholder: 'https://drive.google.com/file/d/...',
+      urlPlaceholder: 'Вставте одне або кілька посилань — кожне з нового рядка (по порядку сторінок)',
+      pagePrefix: 'Стор.',
       sourceLabel: 'Джерело',
       dateLabel: 'Дата',
       segmentLabel: 'Прив’язка до сегмента МРТ',
@@ -667,7 +669,8 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       titleLabel: 'Название материала',
       titlePlaceholder: 'Протокол МРТ SOR 2026 (PDF)',
       urlLabel: 'Ссылка (URL)',
-      urlPlaceholder: 'https://drive.google.com/file/d/...',
+      urlPlaceholder: 'Вставьте одну или несколько ссылок — каждую с новой строки (по порядку страниц)',
+      pagePrefix: 'Стр.',
       sourceLabel: 'Источник',
       dateLabel: 'Дата',
       segmentLabel: 'Привязка к сегменту МРТ',
@@ -929,7 +932,8 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       titleLabel: 'Resource Title',
       titlePlaceholder: 'SOR 2026 Spine MRI Report (PDF)',
       urlLabel: 'URL',
-      urlPlaceholder: 'https://drive.google.com/file/d/...',
+      urlPlaceholder: 'Paste one or more links — each on a new line (in page order)',
+      pagePrefix: 'Page',
       sourceLabel: 'Platform',
       dateLabel: 'Date',
       segmentLabel: 'Link to MRI Segment',

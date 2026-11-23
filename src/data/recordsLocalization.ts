@@ -264,9 +264,32 @@ export function detectAttachmentSource(url: string): AttachmentSource {
   return 'other';
 }
 
-export function normalizeAttachmentSource(source: unknown, url?: string): AttachmentSource {
-  if (url) {
-    const lower = url.toLowerCase();
+export function parseAttachmentUrlsInput(rawText: string): string[] {
+  return rawText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+export function getAttachmentUrls(item: { url?: string; urls?: string[] }): string[] {
+  if (Array.isArray(item.urls) && item.urls.length > 0) {
+    const cleaned = item.urls.map((u) => (typeof u === 'string' ? u.trim() : '')).filter(Boolean);
+    if (cleaned.length > 0) return cleaned;
+  }
+  if (typeof item.url === 'string' && item.url.trim().length > 0) {
+    return [item.url.trim()];
+  }
+  return [];
+}
+
+export function normalizeAttachmentSource(
+  source: unknown,
+  url?: string,
+  urls?: string[],
+): AttachmentSource {
+  const primaryUrl = (Array.isArray(urls) && urls.find((u) => u && u.trim())) || url;
+  if (primaryUrl) {
+    const lower = primaryUrl.toLowerCase();
     if (lower.includes('drive.google.com') || lower.includes('docs.google.com')) {
       return 'gdrive';
     }
@@ -274,8 +297,8 @@ export function normalizeAttachmentSource(source: unknown, url?: string): Attach
   if (source === 'gdrive' || source === 'cloud' || source === 'clinic' || source === 'other') {
     return source;
   }
-  if (url) {
-    return detectAttachmentSource(url);
+  if (primaryUrl) {
+    return detectAttachmentSource(primaryUrl);
   }
   return 'other';
 }

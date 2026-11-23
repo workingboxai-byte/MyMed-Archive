@@ -7,6 +7,7 @@ import {
   SYSTEMIC_SOR_FINDINGS,
 } from '../data/spineSegmentsData';
 import { ComplaintZoneKey, Language } from '../types/medical';
+import { getAttachmentUrls } from '../data/recordsLocalization';
 
 const ZONE_KEYS: ComplaintZoneKey[] = [
   'lumbar_sacral',
@@ -335,7 +336,7 @@ export const DoctorView: React.FC = () => {
           </ul>
         </section>
 
-        {/* Block 7: External Screenshots & Links (Lightshot / GitHub) */}
+        {/* Block 7: External Documents & Links */}
         <section className="print-avoid-break mt-4 border-b border-slate-200 pb-3.5">
           <h2 className="text-xs font-bold uppercase tracking-wide text-slate-900">
             {t.doctor.linksBlock}
@@ -343,17 +344,48 @@ export const DoctorView: React.FC = () => {
           {attachments.length === 0 ? (
             <p className="mt-1.5 text-xs italic text-slate-500">{t.doctor.noLinksNote}</p>
           ) : (
-            <ul className="mt-2 space-y-1 text-[11px]">
-              {attachments.map((att) => (
-                <li key={att.id} className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-semibold text-slate-900">{att.title}</span>
-                  <span className="text-slate-400">·</span>
-                  <span className="font-mono text-sky-700 break-all">{att.url}</span>
-                  {att.linkedSegment && (
-                    <span className="font-mono text-slate-600">[{att.linkedSegment}]</span>
-                  )}
-                </li>
-              ))}
+            <ul className="mt-2 space-y-1.5 text-[11px]">
+              {attachments.map((att) => {
+                const urls = getAttachmentUrls(att);
+                if (urls.length <= 1) {
+                  return (
+                    <li key={att.id} className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="font-semibold text-slate-900">{att.title}</span>
+                      <span className="text-slate-400">·</span>
+                      <span className="font-mono text-sky-700 break-all">
+                        {urls[0] || att.url}
+                      </span>
+                      {att.linkedSegment && (
+                        <span className="font-mono text-slate-600">[{att.linkedSegment}]</span>
+                      )}
+                    </li>
+                  );
+                }
+
+                return (
+                  <li key={att.id} className="space-y-0.5">
+                    <div className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="font-semibold text-slate-900">{att.title}</span>
+                      {att.linkedSegment && (
+                        <span className="font-mono text-slate-600">[{att.linkedSegment}]</span>
+                      )}
+                    </div>
+                    <ul className="space-y-0.5 pl-3">
+                      {urls.map((linkUrl, idx) => (
+                        <li
+                          key={`${att.id}:${idx}`}
+                          className="flex flex-wrap items-baseline gap-x-1.5"
+                        >
+                          <span className="font-mono font-semibold text-slate-600">
+                            {t.archive.pagePrefix} {idx + 1}:
+                          </span>
+                          <span className="font-mono text-sky-700 break-all">{linkUrl}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>

@@ -115,6 +115,7 @@ export interface AttachmentLink {
   id: string;
   title: string;
   url: string;
+  urls?: string[];
   source: AttachmentSource;
   date: string;
   linkedSegment: string;

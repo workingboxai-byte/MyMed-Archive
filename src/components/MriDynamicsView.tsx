@@ -7,6 +7,7 @@ import {
   SYSTEMIC_SOR_FINDINGS,
 } from '../data/spineSegmentsData';
 import { MriViewMode, RegionFilter, SegmentStatus } from '../types/medical';
+import { getAttachmentUrls } from '../data/recordsLocalization';
 import { SpineSchematicSvg } from './SpineSchematicSvg';
 import { MriDynamicsCharts } from './MriDynamicsCharts';
 
@@ -429,18 +430,24 @@ export const MriDynamicsView: React.FC = () => {
                   {t.mri.linkedAttachments}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {segmentAttachments.map((att) => (
-                    <a
-                      key={att.id}
-                      href={att.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-800 dark:text-cyan-400 dark:hover:border-cyan-600"
-                    >
-                      <span>{att.title}</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  ))}
+                  {segmentAttachments.flatMap((att) => {
+                    const urls = getAttachmentUrls(att);
+                    return urls.map((linkUrl, idx) => (
+                      <a
+                        key={`${att.id}:${idx}`}
+                        href={linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-800 dark:text-cyan-400 dark:hover:border-cyan-600"
+                      >
+                        <span>
+                          {att.title}
+                          {urls.length > 1 ? ` — ${t.archive.pagePrefix} ${idx + 1}` : ''}
+                        </span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    ));
+                  })}
                 </div>
               </div>
             )}
