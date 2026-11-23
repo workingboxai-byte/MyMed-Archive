@@ -359,7 +359,15 @@ const AppShell: React.FC = () => {
           </header>
 
           {/* Active Section Content */}
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{renderSection()}</main>
+          <main
+            className={
+              activeSection === 'atlas3d'
+                ? 'flex-1 px-3 py-3 sm:px-4'
+                : 'flex-1 px-4 py-6 sm:px-6 lg:px-8'
+            }
+          >
+            {renderSection()}
+          </main>
         </div>
       </div>
 

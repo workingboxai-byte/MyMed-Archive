@@ -195,23 +195,27 @@ export interface UiDictionary {
     sectionSubtitle: string;
     sceneSpine: string;
     sceneBrain: string;
+    sceneSpineShort: string;
+    sceneBrainShort: string;
     segmentsTitle: string;
     brainPointsTitle: string;
     layersTitle: string;
-    layerVertebrae: string;
-    layerDiscs: string;
+    layerSilhouette: string;
+    layerHeadSilhouette: string;
     layerMuscles: string;
-    layerHemispheres: string;
     layerVessels: string;
-    layerMarkers: string;
+    collapsePanel: string;
+    expandPanel: string;
+    detailsExpand: string;
+    detailsCollapse: string;
     viewFront: string;
     viewSide: string;
     viewBack: string;
     viewReset: string;
+    viewFullSpine: string;
+    viewFullBrain: string;
     orbitHint: string;
     loadingEngine: string;
-    modelModeProcedural: string;
-    modelModeGlb: string;
     cardProtrusion: string;
     cardCanal: string;
     cardStatus: string;
@@ -449,33 +453,37 @@ export const UI_DICT: Record<Language, UiDictionary> = {
     },
     atlas3d: {
       sectionTitle: '3D-атлас анатомії та знахідок МРТ',
-      sectionSubtitle: 'Інтерактивний просторовий огляд сегментів хребта (SOR 2025–2026), м’язів плечового пояса та ключових зон головного мозку',
+      sectionSubtitle: 'Інтерактивний 3D-огляд хребта (SOR 2025–2026) та головного мозку на базі Svitylo 3D Anatomy Atlas',
       sceneSpine: 'Хребет і м’язи',
       sceneBrain: 'Головний мозок і судини',
-      segmentsTitle: 'Сегменти хребта (16 рівнів)',
-      brainPointsTitle: 'Ключові точки МРТ мозку',
-      layersTitle: 'Шари моделі',
-      layerVertebrae: 'Хребці (C1–S1)',
-      layerDiscs: 'Міжхребцеві диски',
-      layerMuscles: 'М’язи спини / трапеція справа',
-      layerHemispheres: 'Півкулі мозку',
-      layerVessels: 'Судини та зорові нерви',
-      layerMarkers: 'Клінічні маркери',
+      sceneSpineShort: 'Хребет',
+      sceneBrainShort: 'Мозок',
+      segmentsTitle: 'Сегменти хребта',
+      brainPointsTitle: 'Точки МРТ мозку',
+      layersTitle: 'Оточення і шари',
+      layerSilhouette: 'Силует тіла',
+      layerHeadSilhouette: 'Силует голови',
+      layerMuscles: 'М’язи спини',
+      layerVessels: 'Судини',
+      collapsePanel: 'Згорнути список',
+      expandPanel: 'Показати список',
+      detailsExpand: 'Розгорнути деталі сегмента',
+      detailsCollapse: 'Згорнути деталі',
       viewFront: 'Спереду',
       viewSide: 'Збоку',
       viewBack: 'Ззаду',
       viewReset: 'Скинути',
-      orbitHint: 'ЛКМ — обертання · Колесо — зум · Клік по маркеру/диску — фокус',
-      loadingEngine: 'Завантаження 3D-двигуна…',
-      modelModeProcedural: 'Процедурна 3D-анатомія',
-      modelModeGlb: 'GLB-модель',
+      viewFullSpine: 'Весь хребет',
+      viewFullBrain: 'Весь мозок',
+      orbitHint: 'ЛКМ — обертання · Колесо — зум · Клік по хребцю — фокус',
+      loadingEngine: 'Завантаження Svitylo 3D Atlas…',
       cardProtrusion: 'Випинання',
       cardCanal: 'Саг. канал',
       cardStatus: 'Динаміка',
       cardOpenMri: 'Протокол SOR',
       cardLocation: 'Локалізація',
       cardCategory: 'Тип знахідки',
-      attribution: '3D anatomy reference: Z-Anatomy / BodyParts3D (CC-BY-SA 4.0)',
+      attribution: 'Svitylo 3D Anatomy Atlas · Z-Anatomy (CC BY-SA 4.0)',
       trapeziusBadge: 'Зміна сигналу верхньої трапеції справа (SOR 2026)',
     },
   },
@@ -705,33 +713,37 @@ export const UI_DICT: Record<Language, UiDictionary> = {
     },
     atlas3d: {
       sectionTitle: '3D-атлас анатомии и находок МРТ',
-      sectionSubtitle: 'Интерактивный пространственный обзор сегментов позвоночника (SOR 2025–2026), мышц плечевого пояса и ключевых зон головного мозга',
+      sectionSubtitle: 'Интерактивный 3D-обзор позвоночника (SOR 2025–2026) и головного мозга на базе Svitylo 3D Anatomy Atlas',
       sceneSpine: 'Позвоночник и мышцы',
       sceneBrain: 'Головной мозг и сосуды',
-      segmentsTitle: 'Сегменты позвоночника (16 уровней)',
-      brainPointsTitle: 'Ключевые точки МРТ мозга',
-      layersTitle: 'Слои модели',
-      layerVertebrae: 'Позвонки (C1–S1)',
-      layerDiscs: 'Межпозвонковые диски',
-      layerMuscles: 'Мышцы спины / трапеция справа',
-      layerHemispheres: 'Полушария мозга',
-      layerVessels: 'Сосуды и зрительные нервы',
-      layerMarkers: 'Клинические маркеры',
+      sceneSpineShort: 'Позвоночник',
+      sceneBrainShort: 'Мозг',
+      segmentsTitle: 'Сегменты позвоночника',
+      brainPointsTitle: 'Точки МРТ мозга',
+      layersTitle: 'Окружение и слои',
+      layerSilhouette: 'Силуэт тела',
+      layerHeadSilhouette: 'Силуэт головы',
+      layerMuscles: 'Мышцы спины',
+      layerVessels: 'Сосуды',
+      collapsePanel: 'Свернуть список',
+      expandPanel: 'Показать список',
+      detailsExpand: 'Развернуть детали сегмента',
+      detailsCollapse: 'Свернуть детали',
       viewFront: 'Спереди',
       viewSide: 'Сбоку',
       viewBack: 'Сзади',
       viewReset: 'Сбросить',
-      orbitHint: 'ЛКМ — вращение · Колесо — зум · Клик по маркеру/диску — фокус',
-      loadingEngine: 'Загрузка 3D-движка…',
-      modelModeProcedural: 'Процедурная 3D-анатомия',
-      modelModeGlb: 'GLB-модель',
+      viewFullSpine: 'Весь позвоночник',
+      viewFullBrain: 'Весь мозг',
+      orbitHint: 'ЛКМ — вращение · Колесо — зум · Клик по позвонку — фокус',
+      loadingEngine: 'Загрузка Svitylo 3D Atlas…',
       cardProtrusion: 'Выпячивание',
       cardCanal: 'Саг. канал',
       cardStatus: 'Динамика',
       cardOpenMri: 'Протокол SOR',
       cardLocation: 'Локализация',
       cardCategory: 'Тип находки',
-      attribution: '3D anatomy reference: Z-Anatomy / BodyParts3D (CC-BY-SA 4.0)',
+      attribution: 'Svitylo 3D Anatomy Atlas · Z-Anatomy (CC BY-SA 4.0)',
       trapeziusBadge: 'Изменение сигнала верхней трапеции справа (SOR 2026)',
     },
   },
@@ -961,33 +973,37 @@ export const UI_DICT: Record<Language, UiDictionary> = {
     },
     atlas3d: {
       sectionTitle: '3D Anatomy & MRI Findings Atlas',
-      sectionSubtitle: 'Interactive spatial overview of spine segments (SOR 2025–2026), right shoulder musculature, and key brain MRI landmarks',
+      sectionSubtitle: 'Interactive 3D spine (SOR 2025–2026) and brain visualization powered by Svitylo 3D Anatomy Atlas',
       sceneSpine: 'Spine & Muscles',
       sceneBrain: 'Brain & Vessels',
-      segmentsTitle: 'Spine Segments (16 levels)',
-      brainPointsTitle: 'Key Brain MRI Landmarks',
-      layersTitle: 'Model Layers',
-      layerVertebrae: 'Vertebrae (C1–S1)',
-      layerDiscs: 'Intervertebral Discs',
-      layerMuscles: 'Back Muscles / Right Trapezius',
-      layerHemispheres: 'Cerebral Hemispheres',
-      layerVessels: 'Vessels & Optic Nerves',
-      layerMarkers: 'Clinical Markers',
+      sceneSpineShort: 'Spine',
+      sceneBrainShort: 'Brain',
+      segmentsTitle: 'Spine Segments',
+      brainPointsTitle: 'Brain MRI Landmarks',
+      layersTitle: 'Context & Layers',
+      layerSilhouette: 'Body Silhouette',
+      layerHeadSilhouette: 'Head Silhouette',
+      layerMuscles: 'Back Muscles',
+      layerVessels: 'Vessels',
+      collapsePanel: 'Collapse list',
+      expandPanel: 'Show list',
+      detailsExpand: 'Expand segment details',
+      detailsCollapse: 'Collapse details',
       viewFront: 'Front',
       viewSide: 'Side',
       viewBack: 'Back',
       viewReset: 'Reset',
-      orbitHint: 'Drag to rotate · Scroll to zoom · Click disc/marker to focus',
-      loadingEngine: 'Loading 3D engine…',
-      modelModeProcedural: 'Procedural 3D Anatomy',
-      modelModeGlb: 'GLB Model',
+      viewFullSpine: 'Full Spine',
+      viewFullBrain: 'Full Brain',
+      orbitHint: 'Drag to rotate · Scroll to zoom · Click vertebra to focus',
+      loadingEngine: 'Loading Svitylo 3D Atlas…',
       cardProtrusion: 'Protrusion',
       cardCanal: 'Sag. Canal',
       cardStatus: 'Dynamics',
       cardOpenMri: 'SOR Protocol',
       cardLocation: 'Localization',
       cardCategory: 'Finding Type',
-      attribution: '3D anatomy reference: Z-Anatomy / BodyParts3D (CC-BY-SA 4.0)',
+      attribution: 'Svitylo 3D Anatomy Atlas · Z-Anatomy (CC BY-SA 4.0)',
       trapeziusBadge: 'Right upper trapezius signal change (SOR 2026)',
     },
   },
