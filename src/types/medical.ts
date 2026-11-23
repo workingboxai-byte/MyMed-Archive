@@ -109,7 +109,7 @@ export interface MedicalExamRecord {
   isCustom?: boolean;
 }
 
-export type AttachmentSource = 'lightshot' | 'github' | 'cloud' | 'other';
+export type AttachmentSource = 'gdrive' | 'cloud' | 'clinic' | 'other';
 
 export interface AttachmentLink {
   id: string;

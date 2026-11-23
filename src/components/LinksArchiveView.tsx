@@ -14,20 +14,24 @@ import {
 } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import { DETAILED_SPINE_SEGMENTS } from '../data/spineSegmentsData';
-import { detectAttachmentSource, isValidHttpUrl } from '../data/recordsLocalization';
+import {
+  detectAttachmentSource,
+  isValidHttpUrl,
+  normalizeAttachmentSource,
+} from '../data/recordsLocalization';
 import { AttachmentLink, AttachmentSource } from '../types/medical';
 import { ConfirmModal } from './ConfirmModal';
 
-const SOURCE_ORDER: AttachmentSource[] = ['lightshot', 'github', 'cloud', 'other'];
+const SOURCE_ORDER: AttachmentSource[] = ['gdrive', 'cloud', 'clinic', 'other'];
 
 function sourceBadgeClasses(source: AttachmentSource): string {
   switch (source) {
-    case 'lightshot':
-      return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300';
-    case 'github':
-      return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800 dark:bg-violet-950/50 dark:text-violet-300';
+    case 'gdrive':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300';
     case 'cloud':
       return 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-800 dark:bg-teal-950/50 dark:text-teal-300';
+    case 'clinic':
+      return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-800 dark:bg-sky-950/50 dark:text-sky-300';
     default:
       return 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
   }
@@ -56,7 +60,7 @@ export const LinksArchiveView: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
-  const [source, setSource] = useState<AttachmentSource>('lightshot');
+  const [source, setSource] = useState<AttachmentSource>('gdrive');
   const [date, setDate] = useState('');
   const [linkedSegment, setLinkedSegment] = useState('');
   const [linkedRecordId, setLinkedRecordId] = useState('');
@@ -70,7 +74,7 @@ export const LinksArchiveView: React.FC = () => {
     setEditingId(null);
     setTitle('');
     setUrl('');
-    setSource('lightshot');
+    setSource('gdrive');
     setDate(new Date().toISOString().slice(0, 10));
     setLinkedSegment('');
     setLinkedRecordId('');
@@ -83,7 +87,7 @@ export const LinksArchiveView: React.FC = () => {
     setEditingId(item.id);
     setTitle(item.title);
     setUrl(item.url);
-    setSource(item.source);
+    setSource(normalizeAttachmentSource(item.source, item.url));
     setDate(item.date);
     setLinkedSegment(item.linkedSegment);
     setLinkedRecordId(item.linkedRecordId);
@@ -96,7 +100,10 @@ export const LinksArchiveView: React.FC = () => {
     setUrl(val);
     setUrlError(null);
     if (val.trim().length > 6) {
-      setSource(detectAttachmentSource(val));
+      const detected = detectAttachmentSource(val);
+      if (detected !== 'other' || isValidHttpUrl(val)) {
+        setSource(detected);
+      }
     }
   };
 
@@ -180,9 +187,18 @@ export const LinksArchiveView: React.FC = () => {
     }
   };
 
+  const normalizedAttachments = useMemo(
+    () =>
+      attachments.map((item) => ({
+        ...item,
+        source: normalizeAttachmentSource(item.source, item.url),
+      })),
+    [attachments],
+  );
+
   const filteredLinks = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return attachments.filter((item) => {
+    return normalizedAttachments.filter((item) => {
       if (sourceFilter !== 'all' && item.source !== sourceFilter) return false;
       if (!q) return true;
       return (
@@ -192,15 +208,15 @@ export const LinksArchiveView: React.FC = () => {
         item.notes.toLowerCase().includes(q)
       );
     });
-  }, [attachments, sourceFilter, search]);
+  }, [normalizedAttachments, sourceFilter, search]);
 
   const counts = useMemo(() => {
-    const map: Record<string, number> = { all: attachments.length };
+    const map: Record<string, number> = { all: normalizedAttachments.length };
     SOURCE_ORDER.forEach((s) => {
-      map[s] = attachments.filter((a) => a.source === s).length;
+      map[s] = normalizedAttachments.filter((a) => a.source === s).length;
     });
     return map;
-  }, [attachments]);
+  }, [normalizedAttachments]);
 
   const recordTitleById = useMemo(() => {
     const map = new Map<string, string>();
@@ -273,7 +289,7 @@ export const LinksArchiveView: React.FC = () => {
                 required
                 value={url}
                 onChange={(e) => handleUrlChange(e.target.value)}
-                placeholder="https://prnt.sc/... or https://github.com/..."
+                placeholder={t.archive.urlPlaceholder}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               />
             </label>
@@ -286,7 +302,7 @@ export const LinksArchiveView: React.FC = () => {
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="L4–L5 SOR 2026 screenshot"
+                placeholder={t.archive.titlePlaceholder}
                 className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               />
             </label>

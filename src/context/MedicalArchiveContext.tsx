@@ -12,6 +12,7 @@ import {
 } from '../types/medical';
 import {
   ANONYMIZED_DEFAULT_MEDICAL_CARD,
+  normalizeAttachmentSource,
   parseOtherRecordsIndex,
 } from '../data/recordsLocalization';
 import { UI_DICT, UiDictionary } from '../data/i18n';
@@ -90,7 +91,7 @@ function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
         id: item.id || `att-${Date.now()}-${idx}`,
         title: item.title || item.url || 'Link',
         url: item.url || '',
-        source: item.source || 'other',
+        source: normalizeAttachmentSource(item.source, item.url),
         date: item.date || '',
         linkedSegment: item.linkedSegment || '',
         linkedRecordId: item.linkedRecordId || '',
@@ -155,7 +156,15 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
       if (saved) {
         const parsed = JSON.parse(saved) as StoredState;
         if (parsed && parsed.profile && parsed.complaints && Array.isArray(parsed.records)) {
-          return parsed;
+          return {
+            ...parsed,
+            attachments: Array.isArray(parsed.attachments)
+              ? parsed.attachments.map((item) => ({
+                  ...item,
+                  source: normalizeAttachmentSource(item.source, item.url),
+                }))
+              : [],
+          };
         }
       }
     } catch {

@@ -236,14 +236,46 @@ export function parseOtherRecordsIndex(indexItems: string[]): MedicalExamRecord[
 
 export function detectAttachmentSource(url: string): AttachmentSource {
   const lower = url.toLowerCase();
-  if (lower.includes('prnt.sc') || lower.includes('prntscr.com') || lower.includes('lightshot') || lower.includes('image.prntscr')) {
-    return 'lightshot';
+  if (lower.includes('drive.google.com') || lower.includes('docs.google.com')) {
+    return 'gdrive';
   }
-  if (lower.includes('github.com') || lower.includes('raw.githubusercontent.com') || lower.includes('gist.github.com')) {
-    return 'github';
-  }
-  if (lower.includes('drive.google.com') || lower.includes('dropbox.com') || lower.includes('onedrive') || lower.includes('dicom') || lower.includes('mega.nz')) {
+  if (
+    lower.includes('dicom') ||
+    lower.includes('pacs') ||
+    lower.includes('dropbox.com') ||
+    lower.includes('onedrive') ||
+    lower.includes('mega.nz') ||
+    lower.includes('icloud.com') ||
+    lower.includes('box.com')
+  ) {
     return 'cloud';
+  }
+  if (
+    lower.includes('helsi') ||
+    lower.includes('synevo') ||
+    lower.includes('dila') ||
+    lower.includes('clinic') ||
+    lower.includes('portal') ||
+    lower.includes('cabinet') ||
+    lower.includes('patient')
+  ) {
+    return 'clinic';
+  }
+  return 'other';
+}
+
+export function normalizeAttachmentSource(source: unknown, url?: string): AttachmentSource {
+  if (url) {
+    const lower = url.toLowerCase();
+    if (lower.includes('drive.google.com') || lower.includes('docs.google.com')) {
+      return 'gdrive';
+    }
+  }
+  if (source === 'gdrive' || source === 'cloud' || source === 'clinic' || source === 'other') {
+    return source;
+  }
+  if (url) {
+    return detectAttachmentSource(url);
   }
   return 'other';
 }
