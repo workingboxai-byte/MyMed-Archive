@@ -7,7 +7,7 @@ import {
   SYSTEMIC_SOR_FINDINGS,
 } from '../data/spineSegmentsData';
 import { ComplaintZoneKey, Language } from '../types/medical';
-import { getAttachmentUrls } from '../data/recordsLocalization';
+import { getAttachmentUrls, isValidHttpUrl } from '../data/recordsLocalization';
 
 const ZONE_KEYS: ComplaintZoneKey[] = [
   'lumbar_sacral',
@@ -347,14 +347,35 @@ export const DoctorView: React.FC = () => {
             <ul className="mt-2 space-y-1.5 text-[11px]">
               {attachments.map((att) => {
                 const urls = getAttachmentUrls(att);
+                const renderClickableUrl = (rawUrl: string) => {
+                  if (!isValidHttpUrl(rawUrl)) {
+                    return <span className="font-mono text-slate-600 break-all">{rawUrl}</span>;
+                  }
+                  return (
+                    <a
+                      href={rawUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="cursor-pointer font-mono text-sky-700 underline-offset-2 transition-colors hover:text-sky-900 hover:underline break-all"
+                    >
+                      {rawUrl}
+                      <span
+                        aria-hidden="true"
+                        className="ml-1 inline-block font-sans text-[10px] leading-none"
+                      >
+                        ↗
+                      </span>
+                    </a>
+                  );
+                };
+
                 if (urls.length <= 1) {
+                  const singleUrl = urls[0] || att.url;
                   return (
                     <li key={att.id} className="flex flex-wrap items-baseline gap-x-2">
                       <span className="font-semibold text-slate-900">{att.title}</span>
                       <span className="text-slate-400">·</span>
-                      <span className="font-mono text-sky-700 break-all">
-                        {urls[0] || att.url}
-                      </span>
+                      {renderClickableUrl(singleUrl)}
                       {att.linkedSegment && (
                         <span className="font-mono text-slate-600">[{att.linkedSegment}]</span>
                       )}
@@ -379,7 +400,7 @@ export const DoctorView: React.FC = () => {
                           <span className="font-mono font-semibold text-slate-600">
                             {t.archive.pagePrefix} {idx + 1}:
                           </span>
-                          <span className="font-mono text-sky-700 break-all">{linkUrl}</span>
+                          {renderClickableUrl(linkUrl)}
                         </li>
                       ))}
                     </ul>

@@ -126,4 +126,10 @@
   thead {
     display: table-header-group;
   }
+
+  .print-sheet a[href] {
+    color: #0369A1 !important;
+    text-decoration: underline !important;
+    text-underline-offset: 2px;
+  }
 }
