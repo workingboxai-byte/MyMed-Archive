@@ -110,6 +110,7 @@ const Atlas3DView: React.FC = () => {
 
   const handleSelectBrain = useCallback((findingId: string) => {
     setSelectedBrainId(findingId);
+    setLocalFocusNonce((n) => n + 1);
   }, []);
 
   const handleModelSourceChange = useCallback(

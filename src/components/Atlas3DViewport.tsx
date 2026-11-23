@@ -7,7 +7,16 @@ import { ThemeMode } from '../context/MedicalArchiveContext';
 import { BRAIN_MRI_LANDMARKS } from '../data/brainFindingsData';
 import { buildProceduralSpineScene, SpineSceneHandle } from '../three/spineAnatomyBuilder';
 import { buildProceduralBrainScene, BrainSceneHandle } from '../three/brainAnatomyBuilder';
-import { disposeObject3D, tryLoadOptionalGlb } from '../three/optionalGlbLoader';
+import {
+  buildGlbBrainMarkers,
+  buildGlbSpineMarkers,
+  computeCameraDistanceForBox,
+  disposeObject3D,
+  GlbBrainMarkersHandle,
+  GlbSpineMarkersHandle,
+  LoadedGlbResult,
+  tryLoadOptionalGlb,
+} from '../three/optionalGlbLoader';
 
 export interface SpineLayersState {
   vertebrae: boolean;
@@ -83,39 +92,82 @@ function createContactShadowPlane(): THREE.Mesh {
   return mesh;
 }
 
-function getDefaultCameraForScene(mode: AtlasSceneMode): {
-  pos: THREE.Vector3;
-  target: THREE.Vector3;
-} {
-  if (mode === 'spine') {
-    return {
-      pos: new THREE.Vector3(-4.2, 0.5, 7.2),
-      target: new THREE.Vector3(-0.15, 0.0, -0.1),
-    };
-  }
-  return {
-    pos: new THREE.Vector3(-2.8, 0.75, 3.65),
-    target: new THREE.Vector3(0, -0.1, 0.05),
-  };
+/**
+ * Applies layer visibility toggles to a loaded spine.glb without ever re-showing
+ * any procedural geometry. If meshes inside the GLB have semantic names
+ * (muscle/trapezius/disc), they respond selectively; otherwise vertebrae toggles the GLB.
+ */
+function applySpineGlbLayerVisibility(
+  glbGroup: THREE.Group,
+  markersGroup: THREE.Group,
+  layers: SpineLayersState,
+): void {
+  let hasNamedMuscles = false;
+  let hasNamedDiscs = false;
+
+  glbGroup.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const name = `${mesh.name} ${mesh.parent?.name || ''}`.toLowerCase();
+    if (/muscle|trapez|levator|erector|latiss|rhomb|myo/.test(name)) {
+      hasNamedMuscles = true;
+    } else if (/disc|disk|intervert|cartil/.test(name)) {
+      hasNamedDiscs = true;
+    }
+  });
+
+  glbGroup.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const name = `${mesh.name} ${mesh.parent?.name || ''}`.toLowerCase();
+    if (hasNamedMuscles && /muscle|trapez|levator|erector|latiss|rhomb|myo/.test(name)) {
+      mesh.visible = layers.muscles;
+    } else if (hasNamedDiscs && /disc|disk|intervert|cartil/.test(name)) {
+      mesh.visible = layers.discs;
+    } else {
+      mesh.visible = layers.vertebrae;
+    }
+  });
+
+  // Clinical segment markers follow the Discs toggle
+  markersGroup.visible = layers.discs;
 }
 
-function getPresetCameraForScene(
-  mode: AtlasSceneMode,
-  preset: AtlasCameraPreset,
-): { pos: THREE.Vector3; target: THREE.Vector3 } {
-  if (preset === 'reset') {
-    return getDefaultCameraForScene(mode);
-  }
-  if (mode === 'spine') {
-    const target = new THREE.Vector3(-0.1, 0.0, -0.1);
-    if (preset === 'front') return { pos: new THREE.Vector3(0, 0.25, 8.6), target };
-    if (preset === 'side') return { pos: new THREE.Vector3(-8.4, 0.25, 0.1), target };
-    return { pos: new THREE.Vector3(0, 0.25, -8.6), target };
-  }
-  const target = new THREE.Vector3(0, -0.1, 0.05);
-  if (preset === 'front') return { pos: new THREE.Vector3(0, 0.15, 4.4), target };
-  if (preset === 'side') return { pos: new THREE.Vector3(-4.4, 0.15, 0.1), target };
-  return { pos: new THREE.Vector3(0, 0.15, -4.4), target };
+/**
+ * Applies layer visibility toggles to a loaded brain_vessels.glb without ever
+ * re-showing any procedural geometry.
+ */
+function applyBrainGlbLayerVisibility(
+  glbGroup: THREE.Group,
+  markersGroup: THREE.Group,
+  layers: BrainLayersState,
+): void {
+  let hasNamedVessels = false;
+
+  glbGroup.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const name = `${mesh.name} ${mesh.parent?.name || ''}`.toLowerCase();
+    if (/vessel|arter|vein|vascular|willis|carotid|basilar|vertebr|nerve|optic/.test(name)) {
+      hasNamedVessels = true;
+    }
+  });
+
+  glbGroup.traverse((child) => {
+    const mesh = child as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const name = `${mesh.name} ${mesh.parent?.name || ''}`.toLowerCase();
+    if (
+      hasNamedVessels &&
+      /vessel|arter|vein|vascular|willis|carotid|basilar|vertebr|nerve|optic/.test(name)
+    ) {
+      mesh.visible = layers.vessels;
+    } else {
+      mesh.visible = layers.hemispheres;
+    }
+  });
+
+  markersGroup.visible = layers.markers;
 }
 
 export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
@@ -148,19 +200,39 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
   const sceneModeRef = useRef<AtlasSceneMode>(sceneMode);
   sceneModeRef.current = sceneMode;
 
+  const selectedSegmentRef = useRef<string>(selectedSegmentId);
+  selectedSegmentRef.current = selectedSegmentId;
+
+  const selectedBrainRef = useRef<string>(selectedBrainId);
+  selectedBrainRef.current = selectedBrainId;
+
+  const spineLayersRef = useRef<SpineLayersState>(spineLayers);
+  spineLayersRef.current = spineLayers;
+
+  const brainLayersRef = useRef<BrainLayersState>(brainLayers);
+  brainLayersRef.current = brainLayers;
+
+  const lastFocusedNonceRef = useRef<number>(0);
+
   // Imperative Three.js controller handle
   const engineRef = useRef<{
     scene: THREE.Scene;
     camera: THREE.PerspectiveCamera;
     controls: OrbitControls;
-    spineHandle: SpineSceneHandle;
-    brainHandle: BrainSceneHandle;
-    spineGlbGroup: THREE.Group | null;
-    brainGlbGroup: THREE.Group | null;
+    spineContainer: THREE.Group;
+    brainContainer: THREE.Group;
+    spineProcedural: SpineSceneHandle | null;
+    brainProcedural: BrainSceneHandle | null;
+    spineGlb: LoadedGlbResult | null;
+    spineGlbMarkers: GlbSpineMarkersHandle | null;
+    brainGlb: LoadedGlbResult | null;
+    brainGlbMarkers: GlbBrainMarkersHandle | null;
     contactPlane: THREE.Mesh;
     hemiLight: THREE.HemisphereLight;
     requestRender: () => void;
     flyTo: (pos: THREE.Vector3, target: THREE.Vector3) => void;
+    frameActiveModel: (mode: AtlasSceneMode, preset: AtlasCameraPreset, instant?: boolean) => void;
+    focusSpineSegment: (segmentId: string) => void;
   } | null>(null);
 
   // Initialize Three.js WebGLRenderer & Scenes ONCE on mount
@@ -175,11 +247,9 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
     const scene = new THREE.Scene();
     const initialBg = theme === 'dark' ? 0x0b1222 : 0xe8eef6;
     scene.background = new THREE.Color(initialBg);
-    scene.fog = new THREE.Fog(initialBg, 14, 34);
+    scene.fog = new THREE.Fog(initialBg, 16, 42);
 
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
-    const initialCam = getDefaultCameraForScene(sceneMode);
-    camera.position.copy(initialCam.pos);
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 120);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: !isSoftwareGl,
@@ -207,7 +277,7 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
     pmremGenerator.dispose();
 
     // Balanced 3-point warm/cool studio lighting rig
-    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x334155, 0.85);
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x334155, 0.9);
     scene.add(hemiLight);
 
     const keyLight = new THREE.DirectionalLight(0xfff7ed, 1.85);
@@ -216,11 +286,11 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
       keyLight.castShadow = true;
       keyLight.shadow.mapSize.set(1024, 1024);
       keyLight.shadow.camera.near = 1;
-      keyLight.shadow.camera.far = 26;
-      keyLight.shadow.camera.left = -5.5;
-      keyLight.shadow.camera.right = 5.5;
-      keyLight.shadow.camera.top = 5.5;
-      keyLight.shadow.camera.bottom = -5.5;
+      keyLight.shadow.camera.far = 28;
+      keyLight.shadow.camera.left = -6;
+      keyLight.shadow.camera.right = 6;
+      keyLight.shadow.camera.top = 6;
+      keyLight.shadow.camera.bottom = -6;
       keyLight.shadow.bias = -0.0005;
       keyLight.shadow.normalBias = 0.02;
     }
@@ -233,30 +303,36 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
     const contactPlane = createContactShadowPlane();
     scene.add(contactPlane);
 
-    // Build both procedural anatomical scenes immediately (zero blank flash)
-    const maxAniso = renderer.capabilities.getMaxAnisotropy();
-    const spineHandle = buildProceduralSpineScene(maxAniso);
-    const brainHandle = buildProceduralBrainScene(maxAniso);
+    // Separate top-level containers for Spine and Brain scenes
+    const spineContainer = new THREE.Group();
+    spineContainer.name = 'Spine_Scene_Container';
+    const brainContainer = new THREE.Group();
+    brainContainer.name = 'Brain_Scene_Container';
+    scene.add(spineContainer);
+    scene.add(brainContainer);
 
-    spineHandle.root.visible = sceneMode === 'spine';
-    brainHandle.root.visible = sceneMode === 'brain';
-    scene.add(spineHandle.root);
-    scene.add(brainHandle.root);
+    // Build fallback procedural models immediately (zero blank flash while checking GLBs)
+    const maxAniso = renderer.capabilities.getMaxAnisotropy();
+    const spineProcedural = buildProceduralSpineScene(maxAniso);
+    const brainProcedural = buildProceduralBrainScene(maxAniso);
+    spineContainer.add(spineProcedural.root);
+    brainContainer.add(brainProcedural.root);
+
+    spineContainer.visible = sceneMode === 'spine';
+    brainContainer.visible = sceneMode === 'brain';
 
     // OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.copy(initialCam.target);
     controls.enableDamping = !isSoftwareGl;
     controls.dampingFactor = 0.075;
-    controls.minDistance = 1.6;
-    controls.maxDistance = 16.0;
+    controls.minDistance = 1.2;
+    controls.maxDistance = 24.0;
     controls.enablePan = true;
-    controls.update();
 
     // Smooth camera transition state
     let transitionActive = false;
-    const goalPos = new THREE.Vector3().copy(initialCam.pos);
-    const goalTarget = new THREE.Vector3().copy(initialCam.target);
+    const goalPos = new THREE.Vector3(0, 0, 10);
+    const goalTarget = new THREE.Vector3(0, 0, 0);
     let lastTimestamp = performance.now();
 
     let disposed = false;
@@ -352,7 +428,114 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
       requestRender();
     };
 
-    // Cancel scripted camera flyTo immediately when user starts orbiting/panning
+    const engineObj: NonNullable<typeof engineRef.current> = {
+      scene,
+      camera,
+      controls,
+      spineContainer,
+      brainContainer,
+      spineProcedural,
+      brainProcedural,
+      spineGlb: null,
+      spineGlbMarkers: null,
+      brainGlb: null,
+      brainGlbMarkers: null,
+      contactPlane,
+      hemiLight,
+      requestRender,
+      flyTo,
+      frameActiveModel: () => {},
+      focusSpineSegment: () => {},
+    };
+
+    const getActiveBoundingBox = (mode: AtlasSceneMode): THREE.Box3 => {
+      if (mode === 'spine') {
+        if (engineObj.spineGlb) return engineObj.spineGlb.box;
+        if (engineObj.spineProcedural) {
+          return new THREE.Box3().setFromObject(engineObj.spineProcedural.root);
+        }
+      } else {
+        if (engineObj.brainGlb) return engineObj.brainGlb.box;
+        if (engineObj.brainProcedural) {
+          return new THREE.Box3().setFromObject(engineObj.brainProcedural.root);
+        }
+      }
+      return new THREE.Box3(new THREE.Vector3(-1, -2, -1), new THREE.Vector3(1, 2, 1));
+    };
+
+    const frameActiveModel = (
+      mode: AtlasSceneMode,
+      preset: AtlasCameraPreset,
+      instant = false,
+    ) => {
+      const box = getActiveBoundingBox(mode);
+      const center = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      box.getCenter(center);
+      box.getSize(size);
+
+      // Ground contact plane neatly below active Box3
+      contactPlane.position.y = box.min.y - Math.max(size.y * 0.04, 0.14);
+
+      const axis = preset === 'reset' ? 'threeQuarter' : preset;
+      // Fit model to ~75% of viewport height and completely within frame
+      const dist = computeCameraDistanceForBox(box, camera, 0.75, axis);
+      const pos = new THREE.Vector3();
+
+      if (preset === 'front') {
+        pos.set(center.x, center.y + size.y * 0.02, center.z + dist);
+      } else if (preset === 'side') {
+        pos.set(center.x - dist, center.y + size.y * 0.02, center.z);
+      } else if (preset === 'back') {
+        pos.set(center.x, center.y + size.y * 0.02, center.z - dist);
+      } else {
+        // Default ergonomic three-quarter clinical angle
+        const az = mode === 'spine' ? -0.46 : -0.58;
+        const elev = mode === 'spine' ? 0.06 : 0.18;
+        pos.set(
+          center.x + Math.sin(az) * Math.cos(elev) * dist,
+          center.y + Math.sin(elev) * dist,
+          center.z + Math.cos(az) * Math.cos(elev) * dist,
+        );
+      }
+
+      if (instant) {
+        transitionActive = false;
+        camera.position.copy(pos);
+        controls.target.copy(center);
+        goalPos.copy(pos);
+        goalTarget.copy(center);
+        controls.update();
+        requestRender();
+      } else {
+        flyTo(pos, center);
+      }
+    };
+
+    const focusSpineSegment = (segmentId: string) => {
+      const targetPos =
+        engineObj.spineGlbMarkers?.segmentPositions.get(segmentId) ??
+        engineObj.spineProcedural?.segmentPositions.get(segmentId);
+      if (!targetPos) return;
+
+      const modelHeight = engineObj.spineGlb ? engineObj.spineGlb.size.y : 6.5;
+      const zoomDist = Math.max(modelHeight * 0.44, 2.5);
+      const sideSign = segmentId === 'L4-L5' ? 0.55 : -0.62;
+      const camGoal = new THREE.Vector3(
+        targetPos.x + zoomDist * sideSign,
+        targetPos.y + modelHeight * 0.05,
+        targetPos.z + zoomDist * 0.85,
+      );
+      flyTo(camGoal, targetPos);
+    };
+
+    engineObj.frameActiveModel = frameActiveModel;
+    engineObj.focusSpineSegment = focusSpineSegment;
+    engineRef.current = engineObj;
+
+    // Set initial camera to frame the active scene cleanly at ~75% height
+    frameActiveModel(sceneMode, 'reset', true);
+
     const onControlsStart = () => {
       transitionActive = false;
     };
@@ -362,18 +545,22 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
     controls.addEventListener('start', onControlsStart);
     controls.addEventListener('change', onControlsChange);
 
-    // Pre-warm shaders on real GPUs
     if (!isSoftwareGl) {
       renderer.compile(scene, camera);
     }
 
-    // Raycasting: click to select disc or brain marker (ignore drag gestures)
+    // Raycasting: click to select active disc/pin or brain marker (ignore drag gestures)
     let downX = 0;
     let downY = 0;
     let lastHoverTime = 0;
 
     const getActiveClickables = (): THREE.Object3D[] => {
-      return sceneModeRef.current === 'spine' ? spineHandle.clickables : brainHandle.clickables;
+      if (sceneModeRef.current === 'spine') {
+        if (engineObj.spineGlbMarkers) return engineObj.spineGlbMarkers.clickables;
+        return engineObj.spineProcedural ? engineObj.spineProcedural.clickables : [];
+      }
+      if (engineObj.brainGlbMarkers) return engineObj.brainGlbMarkers.clickables;
+      return engineObj.brainProcedural ? engineObj.brainProcedural.clickables : [];
     };
 
     const updateMouseNdc = (e: PointerEvent) => {
@@ -436,52 +623,97 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
     });
     resizeObserver.observe(container);
 
-    const engineObj = {
-      scene,
-      camera,
-      controls,
-      spineHandle,
-      brainHandle,
-      spineGlbGroup: null as THREE.Group | null,
-      brainGlbGroup: null as THREE.Group | null,
-      contactPlane,
-      hemiLight,
-      requestRender,
-      flyTo,
-    };
-    engineRef.current = engineObj;
-
-    // Hybrid optional GLB loading (silently checks ./models/spine.glb & ./models/brain_vessels.glb)
+    // Hybrid optional GLB loading:
+    // Checks ./models/spine.glb & ./models/brain_vessels.glb via GLTFLoader + DRACOLoader.
+    // Whenever a GLB succeeds, COMPLETELY removes & disposes the procedural fallback model
+    // so there is zero overlap, centers & scales it to ~75% height, and anchors markers to its Box3.
     const abortController = new AbortController();
     void (async () => {
-      const [spineGlb, brainGlb] = await Promise.all([
-        tryLoadOptionalGlb('./models/spine.glb', 6.8, abortController.signal),
-        tryLoadOptionalGlb('./models/brain_vessels.glb', 3.1, abortController.signal),
+      const [spineGlbResult, brainGlbResult] = await Promise.all([
+        tryLoadOptionalGlb('./models/spine.glb', 6.4, abortController.signal),
+        tryLoadOptionalGlb('./models/brain_vessels.glb', 3.4, abortController.signal),
       ]);
+
       if (disposed) {
-        if (spineGlb) disposeObject3D(spineGlb);
-        if (brainGlb) disposeObject3D(brainGlb);
+        if (spineGlbResult) disposeObject3D(spineGlbResult.group);
+        if (brainGlbResult) disposeObject3D(brainGlbResult.group);
         return;
       }
 
-      if (spineGlb) {
-        spineHandle.vertebraeGroup.visible = false;
-        spineGlb.name = 'Loaded_Spine_GLB';
-        spineHandle.root.add(spineGlb);
-        engineObj.spineGlbGroup = spineGlb;
+      if (spineGlbResult) {
+        // 1. Completely remove and dispose ALL procedural spine geometry (vertebrae, discs, muscles)
+        if (engineObj.spineProcedural) {
+          engineObj.spineProcedural.root.visible = false;
+          spineContainer.remove(engineObj.spineProcedural.root);
+          engineObj.spineProcedural.dispose();
+          engineObj.spineProcedural = null;
+        }
+
+        // 2. Mount centered & scaled GLB + Box3-anchored clinical markers
+        spineGlbResult.group.name = 'Loaded_Spine_GLB';
+        const glbMarkers = buildGlbSpineMarkers(spineGlbResult.group, spineGlbResult.box);
+        glbMarkers.setHighlightedSegment(selectedSegmentRef.current);
+        applySpineGlbLayerVisibility(
+          spineGlbResult.group,
+          glbMarkers.group,
+          spineLayersRef.current,
+        );
+
+        spineContainer.add(spineGlbResult.group);
+        spineContainer.add(glbMarkers.group);
+        engineObj.spineGlb = spineGlbResult;
+        engineObj.spineGlbMarkers = glbMarkers;
+
         callbacksRef.current.onModelSourceChange('spine', 'glb');
-        requestRender();
+
+        // 3. Auto-frame centered GLB to ~75% viewport height (or focus jumped segment)
+        if (sceneModeRef.current === 'spine') {
+          const box = spineGlbResult.box;
+          contactPlane.position.y = box.min.y - Math.max(spineGlbResult.size.y * 0.04, 0.14);
+          if (lastFocusedNonceRef.current > 0) {
+            focusSpineSegment(selectedSegmentRef.current);
+          } else {
+            frameActiveModel('spine', 'reset', false);
+          }
+        } else {
+          requestRender();
+        }
       } else {
         callbacksRef.current.onModelSourceChange('spine', 'procedural');
       }
 
-      if (brainGlb) {
-        brainHandle.hemispheresGroup.visible = false;
-        brainGlb.name = 'Loaded_Brain_GLB';
-        brainHandle.root.add(brainGlb);
-        engineObj.brainGlbGroup = brainGlb;
+      if (brainGlbResult) {
+        // 1. Completely remove and dispose ALL procedural brain geometry (hemispheres, vessels, markers)
+        if (engineObj.brainProcedural) {
+          engineObj.brainProcedural.root.visible = false;
+          brainContainer.remove(engineObj.brainProcedural.root);
+          engineObj.brainProcedural.dispose();
+          engineObj.brainProcedural = null;
+        }
+
+        // 2. Mount centered & scaled GLB + Box3-anchored brain MRI markers
+        brainGlbResult.group.name = 'Loaded_Brain_GLB';
+        const glbMarkers = buildGlbBrainMarkers(brainGlbResult.box);
+        glbMarkers.setHighlightedFinding(selectedBrainRef.current);
+        applyBrainGlbLayerVisibility(
+          brainGlbResult.group,
+          glbMarkers.group,
+          brainLayersRef.current,
+        );
+
+        brainContainer.add(brainGlbResult.group);
+        brainContainer.add(glbMarkers.group);
+        engineObj.brainGlb = brainGlbResult;
+        engineObj.brainGlbMarkers = glbMarkers;
+
         callbacksRef.current.onModelSourceChange('brain', 'glb');
-        requestRender();
+
+        // 3. Auto-frame centered GLB to ~75% viewport height when active
+        if (sceneModeRef.current === 'brain') {
+          frameActiveModel('brain', 'reset', false);
+        } else {
+          requestRender();
+        }
       } else {
         callbacksRef.current.onModelSourceChange('brain', 'procedural');
       }
@@ -502,8 +734,12 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
       renderer.domElement.removeEventListener('pointermove', onPointerMove);
       controls.dispose();
 
-      spineHandle.dispose();
-      brainHandle.dispose();
+      if (engineObj.spineProcedural) engineObj.spineProcedural.dispose();
+      if (engineObj.brainProcedural) engineObj.brainProcedural.dispose();
+      if (engineObj.spineGlb) disposeObject3D(engineObj.spineGlb.group);
+      if (engineObj.spineGlbMarkers) engineObj.spineGlbMarkers.dispose();
+      if (engineObj.brainGlb) disposeObject3D(engineObj.brainGlb.group);
+      if (engineObj.brainGlbMarkers) engineObj.brainGlbMarkers.dispose();
       disposeObject3D(contactPlane);
       envTarget.dispose();
       renderer.dispose();
@@ -521,106 +757,115 @@ export const Atlas3DViewport: React.FC<Atlas3DViewportProps> = ({
     if (!engine) return;
     const bgHex = theme === 'dark' ? 0x0b1222 : 0xe8eef6;
     engine.scene.background = new THREE.Color(bgHex);
-    engine.scene.fog = new THREE.Fog(bgHex, 14, 34);
-    engine.hemiLight.intensity = theme === 'dark' ? 0.72 : 0.95;
+    engine.scene.fog = new THREE.Fog(bgHex, 16, 42);
+    engine.hemiLight.intensity = theme === 'dark' ? 0.75 : 0.95;
     (engine.contactPlane.material as THREE.MeshBasicMaterial).opacity =
       theme === 'dark' ? 0.45 : 0.68;
     engine.requestRender();
   }, [theme]);
 
-  // Sync active scene visibility (Spine vs Brain) & reset default camera smoothly
+  // Sync active scene visibility (Spine vs Brain) & frame cleanly at ~75% height
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    engine.spineHandle.root.visible = sceneMode === 'spine';
-    engine.brainHandle.root.visible = sceneMode === 'brain';
-    engine.contactPlane.position.y = sceneMode === 'spine' ? -4.2 : -1.95;
-
-    const defaults = getDefaultCameraForScene(sceneMode);
-    engine.flyTo(defaults.pos, defaults.target);
+    engine.spineContainer.visible = sceneMode === 'spine';
+    engine.brainContainer.visible = sceneMode === 'brain';
+    engine.frameActiveModel(sceneMode, 'reset', false);
   }, [sceneMode]);
 
-  // Sync Spine layer toggles
+  // Sync Spine layer toggles (strictly respects GLB vs Procedural mode — never revives hidden procedural)
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    if (engine.spineGlbGroup) {
-      engine.spineGlbGroup.visible = spineLayers.vertebrae;
-      engine.spineHandle.vertebraeGroup.visible = false;
-    } else {
-      engine.spineHandle.vertebraeGroup.visible = spineLayers.vertebrae;
+    if (engine.spineGlb && engine.spineGlbMarkers) {
+      applySpineGlbLayerVisibility(engine.spineGlb.group, engine.spineGlbMarkers.group, spineLayers);
+    } else if (engine.spineProcedural) {
+      engine.spineProcedural.vertebraeGroup.visible = spineLayers.vertebrae;
+      engine.spineProcedural.discsGroup.visible = spineLayers.discs;
+      engine.spineProcedural.musclesGroup.visible = spineLayers.muscles;
     }
-    engine.spineHandle.discsGroup.visible = spineLayers.discs;
-    engine.spineHandle.musclesGroup.visible = spineLayers.muscles;
     engine.requestRender();
   }, [spineLayers]);
 
-  // Sync Brain layer toggles
+  // Sync Brain layer toggles (strictly respects GLB vs Procedural mode)
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    if (engine.brainGlbGroup) {
-      engine.brainGlbGroup.visible = brainLayers.hemispheres;
-      engine.brainHandle.hemispheresGroup.visible = false;
-    } else {
-      engine.brainHandle.hemispheresGroup.visible = brainLayers.hemispheres;
+    if (engine.brainGlb && engine.brainGlbMarkers) {
+      applyBrainGlbLayerVisibility(engine.brainGlb.group, engine.brainGlbMarkers.group, brainLayers);
+    } else if (engine.brainProcedural) {
+      engine.brainProcedural.hemispheresGroup.visible = brainLayers.hemispheres;
+      engine.brainProcedural.vesselsGroup.visible = brainLayers.vessels;
+      engine.brainProcedural.markersGroup.visible = brainLayers.markers;
     }
-    engine.brainHandle.vesselsGroup.visible = brainLayers.vessels;
-    engine.brainHandle.markersGroup.visible = brainLayers.markers;
     engine.requestRender();
   }, [brainLayers]);
 
-  // Highlight & smoothly glide camera to selected Spine segment
+  // Highlight & smoothly glide camera to selected Spine segment (only zoom when user explicitly selects/jumps)
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    engine.spineHandle.setHighlightedSegment(selectedSegmentId);
-    if (sceneMode === 'spine') {
-      const targetPos = engine.spineHandle.segmentPositions.get(selectedSegmentId);
-      if (targetPos) {
-        const isLumbar = selectedSegmentId.startsWith('L');
-        const isCervical = selectedSegmentId.startsWith('C');
-        const offsetX = selectedSegmentId === 'L4-L5' ? 1.85 : -2.15;
-        const offsetZ = isLumbar ? 3.25 : isCervical ? 2.65 : 3.05;
-        const camGoal = new THREE.Vector3(
-          targetPos.x + offsetX,
-          targetPos.y + 0.35,
-          targetPos.z + offsetZ,
-        );
-        engine.flyTo(camGoal, targetPos);
-      } else {
-        engine.requestRender();
-      }
+
+    if (engine.spineGlbMarkers) {
+      engine.spineGlbMarkers.setHighlightedSegment(selectedSegmentId);
+    } else if (engine.spineProcedural) {
+      engine.spineProcedural.setHighlightedSegment(selectedSegmentId);
     }
+
+    const shouldZoom = focusTriggerNonce !== lastFocusedNonceRef.current;
+    lastFocusedNonceRef.current = focusTriggerNonce;
+
+    if (sceneMode === 'spine' && shouldZoom) {
+      engine.focusSpineSegment(selectedSegmentId);
+      return;
+    }
+
+    engine.requestRender();
   }, [selectedSegmentId, focusTriggerNonce, sceneMode]);
 
   // Highlight & smoothly glide camera to selected Brain MRI finding
+  const lastBrainFocusRef = useRef<number>(0);
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine) return;
-    engine.brainHandle.setHighlightedFinding(selectedBrainId);
-    if (sceneMode === 'brain') {
+
+    if (engine.brainGlbMarkers) {
+      engine.brainGlbMarkers.setHighlightedFinding(selectedBrainId);
+    } else if (engine.brainProcedural) {
+      engine.brainProcedural.setHighlightedFinding(selectedBrainId);
+    }
+
+    const shouldZoom = focusTriggerNonce !== lastBrainFocusRef.current;
+    lastBrainFocusRef.current = focusTriggerNonce;
+
+    if (sceneMode === 'brain' && shouldZoom) {
+      const targetPos =
+        engine.brainGlbMarkers?.markerPositions.get(selectedBrainId) ??
+        engine.brainProcedural?.markerPositions.get(selectedBrainId);
       const landmark = BRAIN_MRI_LANDMARKS.find((lm) => lm.id === selectedBrainId);
-      if (landmark) {
-        const target = new THREE.Vector3(...landmark.position);
+
+      if (targetPos && landmark) {
+        const scaleFactor = engine.brainGlb
+          ? Math.max(engine.brainGlb.size.x, engine.brainGlb.size.y, engine.brainGlb.size.z) / 3.4
+          : 1.0;
         const camGoal = new THREE.Vector3(
-          target.x + landmark.cameraOffset[0],
-          target.y + landmark.cameraOffset[1],
-          target.z + landmark.cameraOffset[2],
+          targetPos.x + landmark.cameraOffset[0] * scaleFactor,
+          targetPos.y + landmark.cameraOffset[1] * scaleFactor,
+          targetPos.z + landmark.cameraOffset[2] * scaleFactor,
         );
-        engine.flyTo(camGoal, target);
-      } else {
-        engine.requestRender();
+        engine.flyTo(camGoal, targetPos);
+        return;
       }
     }
-  }, [selectedBrainId, sceneMode]);
+
+    engine.requestRender();
+  }, [selectedBrainId, focusTriggerNonce, sceneMode]);
 
   // Handle explicit camera preset buttons (Front / Side / Back / Reset)
   useEffect(() => {
     const engine = engineRef.current;
     if (!engine || !cameraPresetRequest) return;
-    const { pos, target } = getPresetCameraForScene(sceneMode, cameraPresetRequest.preset);
-    engine.flyTo(pos, target);
+    engine.frameActiveModel(sceneMode, cameraPresetRequest.preset, false);
   }, [cameraPresetRequest, sceneMode]);
 
   return (
