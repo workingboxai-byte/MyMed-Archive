@@ -74,6 +74,36 @@ const KNOWN_RECORDS_MAP: Record<string, KnownRecordMeta> = {
     sortDate: '2025-03-27',
     category: 'ultrasound',
   },
+  'МРТ шийного відділу (25.01.2025)': {
+    title: {
+      uk: 'МРТ шийного відділу',
+      ru: 'МРТ шейного отдела',
+      en: 'Cervical Spine MRI',
+    },
+    date: '25.01.2025',
+    sortDate: '2025-01-25',
+    category: 'mri',
+  },
+  'МРТ грудного відділу (25.01.2025)': {
+    title: {
+      uk: 'МРТ грудного відділу',
+      ru: 'МРТ грудного отдела',
+      en: 'Thoracic Spine MRI',
+    },
+    date: '25.01.2025',
+    sortDate: '2025-01-25',
+    category: 'mri',
+  },
+  'МРТ поперекового відділу (25.01.2025)': {
+    title: {
+      uk: 'МРТ поперекового відділу',
+      ru: 'МРТ поясничного отдела',
+      en: 'Lumbar Spine MRI',
+    },
+    date: '25.01.2025',
+    sortDate: '2025-01-25',
+    category: 'mri',
+  },
   'МРТ ШГП відділу (25.01.2025)': {
     title: {
       uk: 'МРТ шийного, грудного та поперекового відділів (ШГП)',
@@ -112,6 +142,36 @@ const KNOWN_RECORDS_MAP: Record<string, KnownRecordMeta> = {
     },
     date: '19.07.2025',
     sortDate: '2025-07-19',
+    category: 'mri',
+  },
+  'МРТ шийного відділу (07.05.2024)': {
+    title: {
+      uk: 'МРТ шийного відділу',
+      ru: 'МРТ шейного отдела',
+      en: 'Cervical Spine MRI',
+    },
+    date: '07.05.2024',
+    sortDate: '2024-05-07',
+    category: 'mri',
+  },
+  'МРТ грудного відділу (07.05.2024)': {
+    title: {
+      uk: 'МРТ грудного відділу',
+      ru: 'МРТ грудного отдела',
+      en: 'Thoracic Spine MRI',
+    },
+    date: '07.05.2024',
+    sortDate: '2024-05-07',
+    category: 'mri',
+  },
+  'МРТ поперекового відділу (07.05.2024)': {
+    title: {
+      uk: 'МРТ поперекового відділу',
+      ru: 'МРТ поясничного отдела',
+      en: 'Lumbar Spine MRI',
+    },
+    date: '07.05.2024',
+    sortDate: '2024-05-07',
     category: 'mri',
   },
   'МРТ ШГП відділу (07.05.2024)': {
@@ -168,10 +228,56 @@ const KNOWN_RECORDS_MAP: Record<string, KnownRecordMeta> = {
 
 export function inferCategoryFromText(text: string): RecordCategory {
   const lower = text.toLowerCase();
-  if (lower.includes('мрт') || lower.includes('mri') || lower.includes('ангіографі')) return 'mri';
-  if (lower.includes('узд') || lower.includes('узи') || lower.includes('ultrasound') || lower.includes('допплер')) return 'ultrasound';
-  if (lower.includes('виписка') || lower.includes('выписка') || lower.includes('епікриз') || lower.includes('эпикриз') || lower.includes('discharge')) return 'discharge';
-  if (lower.includes('ліпід') || lower.includes('липид') || lower.includes('цукор') || lower.includes('сахар') || lower.includes('аналіз') || lower.includes('lab')) return 'lab';
+  if (
+    lower.includes('мрт') ||
+    lower.includes('mri') ||
+    lower.includes('mra') ||
+    lower.includes('ангіограф') ||
+    lower.includes('ангиограф') ||
+    lower.includes('sor')
+  ) {
+    return 'mri';
+  }
+  if (
+    lower.includes('узд') ||
+    lower.includes('узи') ||
+    lower.includes('ultrasound') ||
+    lower.includes('допплер') ||
+    lower.includes('доплер') ||
+    lower.includes('дуплекс')
+  ) {
+    return 'ultrasound';
+  }
+  if (
+    lower.includes('виписк') ||
+    lower.includes('выписк') ||
+    lower.includes('епікриз') ||
+    lower.includes('эпикриз') ||
+    lower.includes('консультац') ||
+    lower.includes('висновок') ||
+    lower.includes('заключен') ||
+    lower.includes('discharge') ||
+    lower.includes('epicrisis')
+  ) {
+    return 'discharge';
+  }
+  if (
+    lower.includes('ліпід') ||
+    lower.includes('липид') ||
+    lower.includes('цукор') ||
+    lower.includes('сахар') ||
+    lower.includes('глюкоз') ||
+    lower.includes('аналіз') ||
+    lower.includes('анализ') ||
+    lower.includes('кров') ||
+    lower.includes('біохім') ||
+    lower.includes('биохим') ||
+    lower.includes('гормон') ||
+    lower.includes('lab') ||
+    lower.includes('blood')
+  ) {
+    return 'lab';
+  }
   return 'other';
 }
 
@@ -184,7 +290,95 @@ export function extractSortDate(raw: string): string {
   }
   const isoMatch = raw.match(/(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) return isoMatch[0];
+  const yearMatch = raw.match(/\b(19\d{2}|20\d{2})\b/);
+  if (yearMatch) return `${yearMatch[1]}-01-01`;
   return '2025-01-01';
+}
+
+export function formatRecordDateDisplay(rawDate: string): string {
+  const trimmed = rawDate.trim();
+  if (!trimmed) return '—';
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return `${isoMatch[3]}.${isoMatch[2]}.${isoMatch[1]}`;
+  }
+  return trimmed;
+}
+
+const SPLIT_SPINE_MRI_GROUPS: Array<{
+  combinedKey: string;
+  items: Array<{ id: string; key: string }>;
+}> = [
+  {
+    combinedKey: 'МРТ ШГП відділу (25.01.2025)',
+    items: [
+      { id: 'rec-mri-cervical-2025', key: 'МРТ шийного відділу (25.01.2025)' },
+      { id: 'rec-mri-thoracic-2025', key: 'МРТ грудного відділу (25.01.2025)' },
+      { id: 'rec-mri-lumbar-2025', key: 'МРТ поперекового відділу (25.01.2025)' },
+    ],
+  },
+  {
+    combinedKey: 'МРТ ШГП відділу (07.05.2024)',
+    items: [
+      { id: 'rec-mri-cervical-2024', key: 'МРТ шийного відділу (07.05.2024)' },
+      { id: 'rec-mri-thoracic-2024', key: 'МРТ грудного відділу (07.05.2024)' },
+      { id: 'rec-mri-lumbar-2024', key: 'МРТ поперекового відділу (07.05.2024)' },
+    ],
+  },
+];
+
+/**
+ * Safely migrates existing localStorage records by splitting unmodified combined
+ * "МРТ ШГП" entries into separate Cervical / Thoracic / Lumbar records while
+ * preserving any user notes or existing attachment links without data loss.
+ */
+export function migrateSplitSpineMriRecords(
+  records: MedicalExamRecord[],
+  linkedRecordIds: Set<string>,
+): MedicalExamRecord[] {
+  const existingKeys = new Set(
+    records.map((r) => `${r.originalIndexTitle}|${r.date}`).concat(records.map((r) => r.id)),
+  );
+
+  const result: MedicalExamRecord[] = [];
+  for (const rec of records) {
+    const group = SPLIT_SPINE_MRI_GROUPS.find((g) => g.combinedKey === rec.originalIndexTitle);
+    if (!group) {
+      result.push(rec);
+      continue;
+    }
+
+    const splitEntries: MedicalExamRecord[] = [];
+    for (const item of group.items) {
+      const meta = KNOWN_RECORDS_MAP[item.key];
+      if (!meta) continue;
+      if (existingKeys.has(item.id) || existingKeys.has(`${item.key}|${meta.date}`)) continue;
+      existingKeys.add(item.id);
+      existingKeys.add(`${item.key}|${meta.date}`);
+      splitEntries.push({
+        id: item.id,
+        originalIndexTitle: item.key,
+        title: meta.title,
+        date: meta.date,
+        sortDate: meta.sortDate,
+        category: meta.category,
+        notes: '',
+      });
+    }
+
+    const hasLinksOrNotes =
+      linkedRecordIds.has(rec.id) || (typeof rec.notes === 'string' && rec.notes.trim().length > 0);
+    if (hasLinksOrNotes) {
+      // Keep the old combined record so existing links/notes remain intact, and add split entries alongside
+      result.push(rec, ...splitEntries);
+    } else if (splitEntries.length > 0) {
+      result.push(...splitEntries);
+    } else {
+      result.push(rec);
+    }
+  }
+
+  return result;
 }
 
 export function parseOtherRecordsIndex(indexItems: string[]): MedicalExamRecord[] {
@@ -401,11 +595,15 @@ export const ANONYMIZED_DEFAULT_MEDICAL_CARD: RawMedicalCardJson = {
     'Епікриз (27.03.2025)',
     'УЗД нирок та сечового міхура (27.03.2025)',
     'УЗД органів черевної порожнини (27.03.2025)',
-    'МРТ ШГП відділу (25.01.2025)',
+    'МРТ шийного відділу (25.01.2025)',
+    'МРТ грудного відділу (25.01.2025)',
+    'МРТ поперекового відділу (25.01.2025)',
     'МРТ ГП відділу (22.02.2022)',
     'МРТ ангіографія артерій голови (19.07.2025)',
     'МРТ головного мозку (19.07.2025)',
-    'МРТ ШГП відділу (07.05.2024)',
+    'МРТ шийного відділу (07.05.2024)',
+    'МРТ грудного відділу (07.05.2024)',
+    'МРТ поперекового відділу (07.05.2024)',
     'УЗД судин шиї та голови (04.08.2025)',
     'УЗД судин верхніх кінцівок (04.08.2025)',
     'УЗД вен нижніх кінцівок (04.08.2025)',

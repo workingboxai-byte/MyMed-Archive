@@ -13,6 +13,7 @@ import {
 import {
   ANONYMIZED_DEFAULT_MEDICAL_CARD,
   getAttachmentUrls,
+  migrateSplitSpineMriRecords,
   normalizeAttachmentSource,
   parseOtherRecordsIndex,
 } from '../data/recordsLocalization';
@@ -65,7 +66,7 @@ interface MedicalArchiveContextValue {
   attachments: AttachmentLink[];
   updateProfile: (next: PatientProfile) => void;
   updateComplaint: (key: ComplaintZoneKey, next: ComplaintZone) => void;
-  addRecord: (record: Omit<MedicalExamRecord, 'id'>) => void;
+  addRecord: (record: Omit<MedicalExamRecord, 'id'>) => string;
   updateRecord: (id: string, next: Partial<MedicalExamRecord>) => void;
   deleteRecord: (id: string) => void;
   addAttachment: (item: Omit<AttachmentLink, 'id'>) => void;
@@ -81,29 +82,38 @@ interface MedicalArchiveContextValue {
 
 const MedicalArchiveContext = createContext<MedicalArchiveContextValue | null>(null);
 
+function normalizeAttachmentsList(items: unknown): AttachmentLink[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((rawItem, idx) => {
+    const item = rawItem as Partial<AttachmentLink>;
+    const urls = getAttachmentUrls(item);
+    const primaryUrl = urls[0] || '';
+    return {
+      id: item.id || `att-${Date.now()}-${idx}`,
+      title: item.title || primaryUrl || 'Link',
+      url: primaryUrl,
+      urls,
+      source: normalizeAttachmentSource(item.source, primaryUrl, urls),
+      date: item.date || '',
+      linkedSegment: item.linkedSegment || '',
+      linkedRecordId: item.linkedRecordId || '',
+      notes: item.notes || '',
+    };
+  });
+}
+
 function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
-  const baseRecords =
+  const attachments = normalizeAttachmentsList(raw.attachments_and_links);
+  const linkedRecordIds = new Set(
+    attachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
+  );
+
+  const parsedRecords =
     Array.isArray(raw.extended_records) && raw.extended_records.length > 0
       ? raw.extended_records
       : parseOtherRecordsIndex(Array.isArray(raw.other_records_index) ? raw.other_records_index : []);
 
-  const attachments: AttachmentLink[] = Array.isArray(raw.attachments_and_links)
-    ? raw.attachments_and_links.map((item, idx) => {
-        const urls = getAttachmentUrls(item);
-        const primaryUrl = urls[0] || '';
-        return {
-          id: item.id || `att-${Date.now()}-${idx}`,
-          title: item.title || primaryUrl || 'Link',
-          url: primaryUrl,
-          urls,
-          source: normalizeAttachmentSource(item.source, primaryUrl, urls),
-          date: item.date || '',
-          linkedSegment: item.linkedSegment || '',
-          linkedRecordId: item.linkedRecordId || '',
-          notes: item.notes || '',
-        };
-      })
-    : [];
+  const baseRecords = migrateSplitSpineMriRecords(parsedRecords, linkedRecordIds);
 
   return {
     rawMeta: raw.meta || ANONYMIZED_DEFAULT_MEDICAL_CARD.meta,
@@ -118,6 +128,38 @@ function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
     },
     records: baseRecords,
     attachments,
+  };
+}
+
+function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): StoredState {
+  const defaults = normalizeRawJsonToState(ANONYMIZED_DEFAULT_MEDICAL_CARD);
+  if (!parsed || typeof parsed !== 'object') {
+    return defaults;
+  }
+
+  // Never overwrite existing user attachments with an empty template during schema updates
+  const preservedAttachments = Array.isArray(parsed.attachments)
+    ? normalizeAttachmentsList(parsed.attachments)
+    : defaults.attachments;
+
+  const linkedRecordIds = new Set(
+    preservedAttachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
+  );
+
+  const mergedRecords =
+    Array.isArray(parsed.records) && parsed.records.length > 0
+      ? migrateSplitSpineMriRecords(parsed.records, linkedRecordIds)
+      : defaults.records;
+
+  return {
+    rawMeta: parsed.rawMeta ? { ...defaults.rawMeta, ...parsed.rawMeta } : defaults.rawMeta,
+    profile: parsed.profile ? { ...defaults.profile, ...parsed.profile } : defaults.profile,
+    complaints: parsed.complaints
+      ? { ...defaults.complaints, ...parsed.complaints }
+      : defaults.complaints,
+    sorMeta: parsed.sorMeta ? { ...defaults.sorMeta, ...parsed.sorMeta } : defaults.sorMeta,
+    records: mergedRecords,
+    attachments: preservedAttachments,
   };
 }
 
@@ -160,24 +202,8 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const parsed = JSON.parse(saved) as StoredState;
-        if (parsed && parsed.profile && parsed.complaints && Array.isArray(parsed.records)) {
-          return {
-            ...parsed,
-            attachments: Array.isArray(parsed.attachments)
-              ? parsed.attachments.map((item) => {
-                  const urls = getAttachmentUrls(item);
-                  const primaryUrl = urls[0] || '';
-                  return {
-                    ...item,
-                    url: primaryUrl,
-                    urls,
-                    source: normalizeAttachmentSource(item.source, primaryUrl, urls),
-                  };
-                })
-              : [],
-          };
-        }
+        const parsed = JSON.parse(saved) as Partial<StoredState>;
+        return safeMergeStoredState(parsed);
       }
     } catch {
       // Fall back to anonymized defaults
@@ -282,13 +308,14 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
   );
 
   const addRecord = useCallback(
-    (record: Omit<MedicalExamRecord, 'id'>) => {
-      const id = `rec-custom-${Date.now()}`;
+    (record: Omit<MedicalExamRecord, 'id'>): string => {
+      const id = `rec-custom-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
       setState((prev) => ({
         ...prev,
         records: [{ ...record, id, isCustom: true }, ...prev.records],
       }));
       showToast(UI_DICT[language].jsonModal.savedToast, 'success');
+      return id;
     },
     [language, showToast],
   );
@@ -405,7 +432,14 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
           return { ok: false, error: UI_DICT[language].jsonModal.importError };
         }
         const normalized = normalizeRawJsonToState(parsed);
-        setState(normalized);
+        setState((prev) => ({
+          ...normalized,
+          // Preserve existing user attachments if imported JSON omits or has an empty attachments list
+          attachments:
+            Array.isArray(parsed.attachments_and_links) && parsed.attachments_and_links.length > 0
+              ? normalized.attachments
+              : prev.attachments,
+        }));
         showToast(UI_DICT[language].jsonModal.importSuccess, 'success');
         return { ok: true };
       } catch {

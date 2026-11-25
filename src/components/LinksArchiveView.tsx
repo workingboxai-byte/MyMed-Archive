@@ -11,18 +11,28 @@ import {
   X,
   AlertCircle,
   ArrowUpRight,
+  ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import { DETAILED_SPINE_SEGMENTS } from '../data/spineSegmentsData';
 import {
   detectAttachmentSource,
+  extractSortDate,
+  formatRecordDateDisplay,
   getAttachmentUrls,
+  inferCategoryFromText,
   isValidHttpUrl,
   normalizeAttachmentSource,
   parseAttachmentUrlsInput,
 } from '../data/recordsLocalization';
-import { AttachmentLink, AttachmentSource } from '../types/medical';
+import { AttachmentLink, AttachmentSource, Language, MedicalExamRecord } from '../types/medical';
 import { ConfirmModal } from './ConfirmModal';
+
+function formatRecordOptionLabel(record: MedicalExamRecord, language: Language): string {
+  const title = record.title[language];
+  return record.date && record.date !== '—' ? `${title} — ${record.date}` : title;
+}
 
 const SOURCE_ORDER: AttachmentSource[] = ['gdrive', 'cloud', 'clinic', 'other'];
 
@@ -45,6 +55,7 @@ export const LinksArchiveView: React.FC = () => {
     t,
     attachments,
     records,
+    addRecord,
     addAttachment,
     addAttachmentsBatch,
     updateAttachment,
@@ -66,6 +77,8 @@ export const LinksArchiveView: React.FC = () => {
   const [date, setDate] = useState('');
   const [linkedSegment, setLinkedSegment] = useState('');
   const [linkedRecordId, setLinkedRecordId] = useState('');
+  const [recordQuery, setRecordQuery] = useState('');
+  const [recordMenuOpen, setRecordMenuOpen] = useState(false);
   const [notes, setNotes] = useState('');
   const [urlError, setUrlError] = useState<string | null>(null);
 
@@ -73,6 +86,7 @@ export const LinksArchiveView: React.FC = () => {
   const [batchError, setBatchError] = useState<string | null>(null);
 
   const urlTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const recordComboRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (mode !== 'single') return;
@@ -82,6 +96,52 @@ export const LinksArchiveView: React.FC = () => {
     el.style.height = `${Math.max(84, el.scrollHeight)}px`;
   }, [url, mode]);
 
+  useEffect(() => {
+    if (!recordMenuOpen) return;
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (recordComboRef.current && !recordComboRef.current.contains(event.target as Node)) {
+        setRecordMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [recordMenuOpen]);
+
+  const sortedRecords = useMemo(
+    () => [...records].sort((a, b) => b.sortDate.localeCompare(a.sortDate)),
+    [records],
+  );
+
+  const selectedRecordObj = useMemo(
+    () => (linkedRecordId ? records.find((r) => r.id === linkedRecordId) ?? null : null),
+    [records, linkedRecordId],
+  );
+
+  const filteredRecordOptions = useMemo(() => {
+    const q = recordQuery.trim().toLowerCase();
+    if (!q) return sortedRecords;
+    if (selectedRecordObj && formatRecordOptionLabel(selectedRecordObj, language).toLowerCase() === q) {
+      return sortedRecords;
+    }
+    return sortedRecords.filter((rec) => {
+      const label = formatRecordOptionLabel(rec, language).toLowerCase();
+      const categoryLabel = t.records.categories[rec.category].toLowerCase();
+      return (
+        label.includes(q) ||
+        rec.originalIndexTitle.toLowerCase().includes(q) ||
+        rec.date.toLowerCase().includes(q) ||
+        categoryLabel.includes(q)
+      );
+    });
+  }, [sortedRecords, recordQuery, selectedRecordObj, language, t.records.categories]);
+
+  const trimmedRecordQuery = recordQuery.trim();
+  const willCreateNewRecord = !linkedRecordId && trimmedRecordQuery.length > 0;
+  const inferredNewCategory = useMemo(
+    () => inferCategoryFromText(trimmedRecordQuery),
+    [trimmedRecordQuery],
+  );
+
   const openSingleAdd = () => {
     setEditingId(null);
     setTitle('');
@@ -90,6 +150,8 @@ export const LinksArchiveView: React.FC = () => {
     setDate(new Date().toISOString().slice(0, 10));
     setLinkedSegment('');
     setLinkedRecordId('');
+    setRecordQuery('');
+    setRecordMenuOpen(false);
     setNotes('');
     setUrlError(null);
     setMode('single');
@@ -97,13 +159,18 @@ export const LinksArchiveView: React.FC = () => {
 
   const openEdit = (item: AttachmentLink) => {
     const itemUrls = getAttachmentUrls(item);
+    const existingRecord = item.linkedRecordId
+      ? records.find((r) => r.id === item.linkedRecordId) ?? null
+      : null;
     setEditingId(item.id);
     setTitle(item.title);
     setUrl(itemUrls.join('\n'));
     setSource(normalizeAttachmentSource(item.source, item.url, itemUrls));
     setDate(item.date);
     setLinkedSegment(item.linkedSegment);
-    setLinkedRecordId(item.linkedRecordId);
+    setLinkedRecordId(existingRecord ? existingRecord.id : '');
+    setRecordQuery(existingRecord ? formatRecordOptionLabel(existingRecord, language) : '');
+    setRecordMenuOpen(false);
     setNotes(item.notes);
     setUrlError(null);
     setMode('single');
@@ -119,6 +186,31 @@ export const LinksArchiveView: React.FC = () => {
         setSource(detected);
       }
     }
+  };
+
+  const handleRecordInputChange = (val: string) => {
+    setRecordQuery(val);
+    setRecordMenuOpen(true);
+    const normalized = val.trim().toLowerCase();
+    if (!normalized) {
+      setLinkedRecordId('');
+      return;
+    }
+    const exactMatch = records.find(
+      (r) => formatRecordOptionLabel(r, language).toLowerCase() === normalized,
+    );
+    setLinkedRecordId(exactMatch ? exactMatch.id : '');
+  };
+
+  const handleSelectRecordOption = (record: MedicalExamRecord | null) => {
+    if (!record) {
+      setLinkedRecordId('');
+      setRecordQuery('');
+    } else {
+      setLinkedRecordId(record.id);
+      setRecordQuery(formatRecordOptionLabel(record, language));
+    }
+    setRecordMenuOpen(false);
   };
 
   const handleSingleSubmit = (e: React.FormEvent) => {
@@ -140,6 +232,47 @@ export const LinksArchiveView: React.FC = () => {
       }
     }
 
+    let resolvedRecordId = linkedRecordId;
+    if (!resolvedRecordId && trimmedRecordQuery.length > 0) {
+      const normalizedInput = trimmedRecordQuery.toLowerCase();
+      const existingMatch = records.find(
+        (r) =>
+          formatRecordOptionLabel(r, language).toLowerCase() === normalizedInput ||
+          (r.title[language].toLowerCase() === normalizedInput &&
+            (!date.trim() || r.date === formatRecordDateDisplay(date))),
+      );
+
+      if (existingMatch) {
+        resolvedRecordId = existingMatch.id;
+      } else {
+        const inlineDateMatch = trimmedRecordQuery.match(
+          /(\d{2}\.\d{2}\.\d{4}|\d{4}-\d{2}-\d{2})/,
+        );
+        const inlineYearMatch = trimmedRecordQuery.match(/\b(19\d{2}|20\d{2})\b/);
+        const formattedFormDate = date.trim() ? formatRecordDateDisplay(date) : '';
+        const resolvedDate =
+          formattedFormDate ||
+          (inlineDateMatch ? formatRecordDateDisplay(inlineDateMatch[1]) : '') ||
+          (inlineYearMatch ? inlineYearMatch[1] : '—');
+        const sortDate = extractSortDate(formattedFormDate || trimmedRecordQuery);
+        const category = inferCategoryFromText(trimmedRecordQuery);
+
+        resolvedRecordId = addRecord({
+          originalIndexTitle:
+            resolvedDate !== '—' ? `${trimmedRecordQuery} (${resolvedDate})` : trimmedRecordQuery,
+          title: {
+            uk: trimmedRecordQuery,
+            ru: trimmedRecordQuery,
+            en: trimmedRecordQuery,
+          },
+          date: resolvedDate,
+          sortDate,
+          category,
+          notes: '',
+        });
+      }
+    }
+
     const primaryUrl = parsedUrls[0];
     const cleanTitle = title.trim() || primaryUrl.replace(/^https?:\/\//, '').slice(0, 48);
     const payload = {
@@ -149,7 +282,7 @@ export const LinksArchiveView: React.FC = () => {
       source,
       date: date.trim(),
       linkedSegment,
-      linkedRecordId,
+      linkedRecordId: resolvedRecordId,
       notes: notes.trim(),
     };
 
@@ -158,6 +291,7 @@ export const LinksArchiveView: React.FC = () => {
     } else {
       addAttachment(payload);
     }
+    setRecordMenuOpen(false);
     setMode('none');
   };
 
@@ -255,7 +389,7 @@ export const LinksArchiveView: React.FC = () => {
 
   const recordTitleById = useMemo(() => {
     const map = new Map<string, string>();
-    records.forEach((r) => map.set(r.id, r.title[language]));
+    records.forEach((r) => map.set(r.id, formatRecordOptionLabel(r, language)));
     return map;
   }, [records, language]);
 
@@ -343,7 +477,7 @@ export const LinksArchiveView: React.FC = () => {
               />
             </label>
 
-            <label className="block sm:col-span-3">
+            <label className="block sm:col-span-4">
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 {t.archive.sourceLabel}
               </span>
@@ -360,7 +494,7 @@ export const LinksArchiveView: React.FC = () => {
               </select>
             </label>
 
-            <label className="block sm:col-span-3">
+            <label className="block sm:col-span-4">
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 {t.archive.dateLabel}
               </span>
@@ -373,7 +507,7 @@ export const LinksArchiveView: React.FC = () => {
               />
             </label>
 
-            <label className="block sm:col-span-3">
+            <label className="block sm:col-span-4">
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                 {t.archive.segmentLabel}
               </span>
@@ -391,23 +525,136 @@ export const LinksArchiveView: React.FC = () => {
               </select>
             </label>
 
-            <label className="block sm:col-span-3">
-              <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
-                {t.archive.recordLabel}
-              </span>
-              <select
-                value={linkedRecordId}
-                onChange={(e) => setLinkedRecordId(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-              >
-                <option value="">{t.archive.noneOption}</option>
-                {records.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.title[language]}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* Editable Examination Combobox: pick existing (with date) OR type a new name */}
+            <div ref={recordComboRef} className="relative sm:col-span-12">
+              <label className="block">
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                  {t.archive.recordLabel}
+                </span>
+                <div className="relative mt-1">
+                  <input
+                    type="text"
+                    role="combobox"
+                    aria-expanded={recordMenuOpen}
+                    aria-autocomplete="list"
+                    value={recordQuery}
+                    onFocus={() => setRecordMenuOpen(true)}
+                    onChange={(e) => handleRecordInputChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        setRecordMenuOpen(false);
+                      }
+                    }}
+                    placeholder={t.archive.recordPlaceholder}
+                    className="w-full rounded-lg border border-slate-300 bg-white py-2 pr-16 pl-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  />
+                  <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5">
+                    {recordQuery && (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectRecordOption(null)}
+                        aria-label={t.archive.clearSelection}
+                        title={t.archive.clearSelection}
+                        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setRecordMenuOpen((prev) => !prev)}
+                      aria-label={t.archive.recordLabel}
+                      className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+                    >
+                      <ChevronDown
+                        className={`h-4 w-4 transition-transform ${recordMenuOpen ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </label>
+
+              {recordMenuOpen && (
+                <div
+                  role="listbox"
+                  className="absolute right-0 left-0 z-30 mt-1 max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelectRecordOption(null)}
+                    className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${
+                      !linkedRecordId && !recordQuery
+                        ? 'font-semibold text-sky-700 dark:text-cyan-400'
+                        : 'text-slate-500 dark:text-slate-400'
+                    }`}
+                  >
+                    <span>{t.archive.noneOption}</span>
+                  </button>
+
+                  {filteredRecordOptions.map((rec) => {
+                    const isSelected = linkedRecordId === rec.id;
+                    return (
+                      <button
+                        key={rec.id}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => handleSelectRecordOption(rec)}
+                        className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs transition-colors hover:bg-sky-50/70 dark:hover:bg-slate-800 ${
+                          isSelected
+                            ? 'bg-sky-50/80 text-sky-900 dark:bg-cyan-950/40 dark:text-cyan-200'
+                            : 'text-slate-800 dark:text-slate-200'
+                        }`}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <span className="truncate font-medium">{rec.title[language]}</span>
+                          <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                            {t.records.categories[rec.category]}
+                          </span>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {rec.date && rec.date !== '—' && (
+                            <span className="font-mono text-[11px] text-slate-500 tabular-nums dark:text-slate-400">
+                              {rec.date}
+                            </span>
+                          )}
+                          {isSelected && <Check className="h-3.5 w-3.5 text-sky-600 dark:text-cyan-400" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                  {willCreateNewRecord && (
+                    <div className="border-t border-slate-100 bg-sky-50/60 px-3 py-2 text-xs text-sky-900 dark:border-slate-800 dark:bg-cyan-950/35 dark:text-cyan-200">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-cyan-400" />
+                        <span>{t.archive.createRecordHint}</span>
+                        <strong className="font-semibold">«{trimmedRecordQuery}»</strong>
+                        <span className="rounded bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800 dark:bg-slate-800 dark:text-cyan-300">
+                          {t.records.categories[inferredNewCategory]}
+                        </span>
+                        {date.trim() && (
+                          <span className="font-mono text-[11px] text-slate-600 tabular-nums dark:text-slate-300">
+                            · {formatRecordDateDisplay(date)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {willCreateNewRecord && !recordMenuOpen && (
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-sky-700 dark:text-cyan-400">
+                  <Sparkles className="h-3 w-3 shrink-0" />
+                  <span>{t.archive.createRecordHint}</span>
+                  <strong className="font-semibold">«{trimmedRecordQuery}»</strong>
+                  <span className="rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold dark:border-cyan-800 dark:bg-cyan-950/40">
+                    {t.records.categories[inferredNewCategory]}
+                  </span>
+                </p>
+              )}
+            </div>
 
             <label className="block sm:col-span-12">
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">

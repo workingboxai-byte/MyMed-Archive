@@ -148,6 +148,9 @@ export interface UiDictionary {
     dateLabel: string;
     segmentLabel: string;
     recordLabel: string;
+    recordPlaceholder: string;
+    createRecordHint: string;
+    clearSelection: string;
     notesLabel: string;
     noneOption: string;
     emptyTitle: string;
@@ -412,6 +415,9 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       dateLabel: 'Дата',
       segmentLabel: 'Прив’язка до сегмента МРТ',
       recordLabel: 'Прив’язка до обстеження',
+      recordPlaceholder: 'Оберіть обстеження або впишіть нову назву…',
+      createRecordHint: 'При збереженні буде створено нове обстеження:',
+      clearSelection: 'Очистити прив’язку',
       notesLabel: 'Коментар',
       noneOption: 'Без прив’язки',
       emptyTitle: 'Архів посилань поки порожній',
@@ -675,6 +681,9 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       dateLabel: 'Дата',
       segmentLabel: 'Привязка к сегменту МРТ',
       recordLabel: 'Привязка к обследованию',
+      recordPlaceholder: 'Выберите обследование или введите новое название…',
+      createRecordHint: 'При сохранении будет создано новое обследование:',
+      clearSelection: 'Очистить привязку',
       notesLabel: 'Комментарий',
       noneOption: 'Без привязки',
       emptyTitle: 'Архив ссылок пока пуст',
@@ -938,6 +947,9 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       dateLabel: 'Date',
       segmentLabel: 'Link to MRI Segment',
       recordLabel: 'Link to Examination',
+      recordPlaceholder: 'Select an examination or type a new name…',
+      createRecordHint: 'A new examination will be created on save:',
+      clearSelection: 'Clear link',
       notesLabel: 'Notes',
       noneOption: 'None',
       emptyTitle: 'Links archive is currently empty',
