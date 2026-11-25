@@ -73,6 +73,28 @@
   background: #94A3B8;
 }
 
+/* Delicate feathered medical privacy blur mask for 3D Atlas body silhouette */
+.atlas-privacy-blur {
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(13, 20, 36, 0.56) 0%,
+    rgba(13, 20, 36, 0.34) 60%,
+    rgba(13, 20, 36, 0) 100%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    #000 56%,
+    rgba(0, 0, 0, 0.82) 74%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    #000 56%,
+    rgba(0, 0, 0, 0.82) 74%,
+    transparent 100%
+  );
+}
+
 /* Print / PDF A4 Clinical Summary Rules (always crisp light clinical ink on paper) */
 @page {
   size: A4 portrait;
