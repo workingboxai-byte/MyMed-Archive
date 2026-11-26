@@ -147,6 +147,10 @@ export interface UiDictionary {
     sourceLabel: string;
     dateLabel: string;
     segmentLabel: string;
+    segmentGroups: {
+      regions: string;
+      segments: string;
+    };
     recordLabel: string;
     recordPlaceholder: string;
     createRecordHint: string;
@@ -414,6 +418,10 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       sourceLabel: 'Джерело',
       dateLabel: 'Дата',
       segmentLabel: 'Прив’язка до сегмента МРТ',
+      segmentGroups: {
+        regions: 'Відділи хребта (цілком)',
+        segments: 'Окремі сегменти',
+      },
       recordLabel: 'Прив’язка до обстеження',
       recordPlaceholder: 'Оберіть обстеження або впишіть нову назву…',
       createRecordHint: 'При збереженні буде створено нове обстеження:',
@@ -680,6 +688,10 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       sourceLabel: 'Источник',
       dateLabel: 'Дата',
       segmentLabel: 'Привязка к сегменту МРТ',
+      segmentGroups: {
+        regions: 'Отделы позвоночника (целиком)',
+        segments: 'Отдельные сегменты',
+      },
       recordLabel: 'Привязка к обследованию',
       recordPlaceholder: 'Выберите обследование или введите новое название…',
       createRecordHint: 'При сохранении будет создано новое обследование:',
@@ -946,6 +958,10 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       sourceLabel: 'Platform',
       dateLabel: 'Date',
       segmentLabel: 'Link to MRI Segment',
+      segmentGroups: {
+        regions: 'Whole Spine Regions',
+        segments: 'Individual Segments',
+      },
       recordLabel: 'Link to Examination',
       recordPlaceholder: 'Select an examination or type a new name…',
       createRecordHint: 'A new examination will be created on save:',

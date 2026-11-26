@@ -1,4 +1,88 @@
-import { DetailedSpineSegment, SystemicFinding, LocalizedText } from '../types/medical';
+import { DetailedSpineSegment, Language, LocalizedText, SystemicFinding } from '../types/medical';
+
+export interface SpineRegionLinkOption {
+  id: string;
+  label: LocalizedText;
+  regionScope: 'cervical' | 'thoracic' | 'lumbar' | 'sacral' | 'all';
+  defaultJumpSegment: string;
+}
+
+export const SPINE_REGION_LINK_OPTIONS: SpineRegionLinkOption[] = [
+  {
+    id: 'C1-C7',
+    label: {
+      uk: 'Шийний відділ (C1–C7)',
+      ru: 'Шейный отдел (C1–C7)',
+      en: 'Cervical Spine (C1–C7)',
+    },
+    regionScope: 'cervical',
+    defaultJumpSegment: 'C4-C5',
+  },
+  {
+    id: 'D1-D12',
+    label: {
+      uk: 'Грудний відділ (D1–D12)',
+      ru: 'Грудной отдел (D1–D12)',
+      en: 'Thoracic Spine (D1–D12)',
+    },
+    regionScope: 'thoracic',
+    defaultJumpSegment: 'D6-D9',
+  },
+  {
+    id: 'L1-L5',
+    label: {
+      uk: 'Поперековий відділ (L1–L5)',
+      ru: 'Поясничный отдел (L1–L5)',
+      en: 'Lumbar Spine (L1–L5)',
+    },
+    regionScope: 'lumbar',
+    defaultJumpSegment: 'L4-L5',
+  },
+  {
+    id: 'S1-S5',
+    label: {
+      uk: 'Крижовий відділ (S1–S5)',
+      ru: 'Крестцовый отдел (S1–S5)',
+      en: 'Sacral Spine (S1–S5)',
+    },
+    regionScope: 'sacral',
+    defaultJumpSegment: 'L5-S1',
+  },
+  {
+    id: 'WHOLE-SPINE',
+    label: {
+      uk: 'Весь хребет (ШГП)',
+      ru: 'Весь позвоночник (ШГП)',
+      en: 'Whole Spine (C/T/L)',
+    },
+    regionScope: 'all',
+    defaultJumpSegment: 'L4-L5',
+  },
+];
+
+export function getSpineSegmentLinkLabel(linkedSegment: string, language: Language): string {
+  if (!linkedSegment) return '';
+  const regionOption = SPINE_REGION_LINK_OPTIONS.find((opt) => opt.id === linkedSegment);
+  return regionOption ? regionOption.label[language] : linkedSegment;
+}
+
+export function resolveJumpSegmentId(linkedSegment: string): string {
+  const regionOption = SPINE_REGION_LINK_OPTIONS.find((opt) => opt.id === linkedSegment);
+  return regionOption ? regionOption.defaultJumpSegment : linkedSegment;
+}
+
+export function doesAttachmentMatchSegment(
+  linkedSegment: string,
+  segment: DetailedSpineSegment,
+): boolean {
+  if (!linkedSegment) return false;
+  if (linkedSegment === segment.id) return true;
+  const regionOption = SPINE_REGION_LINK_OPTIONS.find((opt) => opt.id === linkedSegment);
+  if (!regionOption) return false;
+  if (regionOption.regionScope === 'all') return true;
+  if (regionOption.regionScope === 'sacral') return segment.id === 'L5-S1';
+  return segment.region === regionOption.regionScope;
+}
 
 export interface MriKpiSummary {
   id: string;

@@ -15,7 +15,12 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
-import { DETAILED_SPINE_SEGMENTS } from '../data/spineSegmentsData';
+import {
+  DETAILED_SPINE_SEGMENTS,
+  SPINE_REGION_LINK_OPTIONS,
+  getSpineSegmentLinkLabel,
+  resolveJumpSegmentId,
+} from '../data/spineSegmentsData';
 import {
   detectAttachmentSource,
   extractSortDate,
@@ -374,10 +379,11 @@ export const LinksArchiveView: React.FC = () => {
         item.url.toLowerCase().includes(q) ||
         item.urls.some((u) => u.toLowerCase().includes(q)) ||
         item.linkedSegment.toLowerCase().includes(q) ||
+        getSpineSegmentLinkLabel(item.linkedSegment, language).toLowerCase().includes(q) ||
         item.notes.toLowerCase().includes(q)
       );
     });
-  }, [normalizedAttachments, sourceFilter, search]);
+  }, [normalizedAttachments, sourceFilter, search, language]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: normalizedAttachments.length };
@@ -514,14 +520,23 @@ export const LinksArchiveView: React.FC = () => {
               <select
                 value={linkedSegment}
                 onChange={(e) => setLinkedSegment(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
               >
                 <option value="">{t.archive.noneOption}</option>
-                {DETAILED_SPINE_SEGMENTS.map((seg) => (
-                  <option key={seg.id} value={seg.id}>
-                    {seg.id}
-                  </option>
-                ))}
+                <optgroup label={t.archive.segmentGroups.regions}>
+                  {SPINE_REGION_LINK_OPTIONS.map((regionOpt) => (
+                    <option key={regionOpt.id} value={regionOpt.id}>
+                      {regionOpt.label[language]}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label={t.archive.segmentGroups.segments}>
+                  {DETAILED_SPINE_SEGMENTS.map((seg) => (
+                    <option key={seg.id} value={seg.id}>
+                      {seg.id}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </label>
 
@@ -848,10 +863,10 @@ export const LinksArchiveView: React.FC = () => {
                           {item.linkedSegment && (
                             <button
                               type="button"
-                              onClick={() => jumpToMriSegment(item.linkedSegment)}
-                              className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-slate-800 hover:border-sky-400 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-cyan-300"
+                              onClick={() => jumpToMriSegment(resolveJumpSegmentId(item.linkedSegment))}
+                              className="inline-flex items-center gap-0.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] font-semibold text-slate-800 hover:border-sky-400 hover:text-sky-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-cyan-300"
                             >
-                              {item.linkedSegment}
+                              {getSpineSegmentLinkLabel(item.linkedSegment, language)}
                               <ArrowUpRight className="h-3 w-3" />
                             </button>
                           )}

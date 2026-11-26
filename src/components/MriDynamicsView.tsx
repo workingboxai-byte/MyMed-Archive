@@ -5,6 +5,7 @@ import {
   DETAILED_SPINE_SEGMENTS,
   MRI_KPI_SUMMARIES,
   SYSTEMIC_SOR_FINDINGS,
+  doesAttachmentMatchSegment,
 } from '../data/spineSegmentsData';
 import { MriViewMode, RegionFilter, SegmentStatus } from '../types/medical';
 import { getAttachmentUrls } from '../data/recordsLocalization';
@@ -90,8 +91,8 @@ export const MriDynamicsView: React.FC = () => {
   }, [selectedMriSegment]);
 
   const segmentAttachments = useMemo(
-    () => attachments.filter((a) => a.linkedSegment === selectedSegment.id),
-    [attachments, selectedSegment.id],
+    () => attachments.filter((a) => doesAttachmentMatchSegment(a.linkedSegment, selectedSegment)),
+    [attachments, selectedSegment],
   );
 
   const handleRegionChange = (nextRegion: RegionFilter) => {

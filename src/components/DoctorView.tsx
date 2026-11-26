@@ -5,6 +5,7 @@ import {
   DETAILED_SPINE_SEGMENTS,
   MRI_KPI_SUMMARIES,
   SYSTEMIC_SOR_FINDINGS,
+  getSpineSegmentLinkLabel,
 } from '../data/spineSegmentsData';
 import { ComplaintZoneKey, Language } from '../types/medical';
 import { getAttachmentUrls, isValidHttpUrl } from '../data/recordsLocalization';
@@ -377,7 +378,9 @@ export const DoctorView: React.FC = () => {
                       <span className="text-slate-400">·</span>
                       {renderClickableUrl(singleUrl)}
                       {att.linkedSegment && (
-                        <span className="font-mono text-slate-600">[{att.linkedSegment}]</span>
+                        <span className="font-mono text-slate-600">
+                          [{getSpineSegmentLinkLabel(att.linkedSegment, language)}]
+                        </span>
                       )}
                     </li>
                   );
@@ -388,7 +391,9 @@ export const DoctorView: React.FC = () => {
                     <div className="flex flex-wrap items-baseline gap-x-2">
                       <span className="font-semibold text-slate-900">{att.title}</span>
                       {att.linkedSegment && (
-                        <span className="font-mono text-slate-600">[{att.linkedSegment}]</span>
+                        <span className="font-mono text-slate-600">
+                          [{getSpineSegmentLinkLabel(att.linkedSegment, language)}]
+                        </span>
                       )}
                     </div>
                     <ul className="space-y-0.5 pl-3">

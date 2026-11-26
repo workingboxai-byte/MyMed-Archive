@@ -144,44 +144,34 @@ const KNOWN_RECORDS_MAP: Record<string, KnownRecordMeta> = {
     sortDate: '2025-07-19',
     category: 'mri',
   },
-  'МРТ шийного відділу (07.05.2024)': {
+  'МРТ шийного відділу (19.10.2026)': {
     title: {
       uk: 'МРТ шийного відділу',
       ru: 'МРТ шейного отдела',
       en: 'Cervical Spine MRI',
     },
-    date: '07.05.2024',
-    sortDate: '2024-05-07',
+    date: '19.10.2026',
+    sortDate: '2026-10-19',
     category: 'mri',
   },
-  'МРТ грудного відділу (07.05.2024)': {
+  'МРТ грудного відділу (19.10.2026)': {
     title: {
       uk: 'МРТ грудного відділу',
       ru: 'МРТ грудного отдела',
       en: 'Thoracic Spine MRI',
     },
-    date: '07.05.2024',
-    sortDate: '2024-05-07',
+    date: '19.10.2026',
+    sortDate: '2026-10-19',
     category: 'mri',
   },
-  'МРТ поперекового відділу (07.05.2024)': {
+  'МРТ поперекового відділу (19.10.2026)': {
     title: {
       uk: 'МРТ поперекового відділу',
       ru: 'МРТ поясничного отдела',
       en: 'Lumbar Spine MRI',
     },
-    date: '07.05.2024',
-    sortDate: '2024-05-07',
-    category: 'mri',
-  },
-  'МРТ ШГП відділу (07.05.2024)': {
-    title: {
-      uk: 'МРТ шийного, грудного та поперекового відділів (ШГП)',
-      ru: 'МРТ шейного, грудного и поясничного отделов (ШГП)',
-      en: 'Whole Spine MRI (Cervical, Thoracic, Lumbar)',
-    },
-    date: '07.05.2024',
-    sortDate: '2024-05-07',
+    date: '19.10.2026',
+    sortDate: '2026-10-19',
     category: 'mri',
   },
   'УЗД судин шиї та голови (04.08.2025)': {
@@ -306,11 +296,11 @@ export function formatRecordDateDisplay(rawDate: string): string {
 }
 
 const SPLIT_SPINE_MRI_GROUPS: Array<{
-  combinedKey: string;
+  sourceKeys: string[];
   items: Array<{ id: string; key: string }>;
 }> = [
   {
-    combinedKey: 'МРТ ШГП відділу (25.01.2025)',
+    sourceKeys: ['МРТ ШГП відділу (25.01.2025)'],
     items: [
       { id: 'rec-mri-cervical-2025', key: 'МРТ шийного відділу (25.01.2025)' },
       { id: 'rec-mri-thoracic-2025', key: 'МРТ грудного відділу (25.01.2025)' },
@@ -318,19 +308,32 @@ const SPLIT_SPINE_MRI_GROUPS: Array<{
     ],
   },
   {
-    combinedKey: 'МРТ ШГП відділу (07.05.2024)',
+    sourceKeys: ['МРТ ШГП відділу (07.05.2024)'],
     items: [
-      { id: 'rec-mri-cervical-2024', key: 'МРТ шийного відділу (07.05.2024)' },
-      { id: 'rec-mri-thoracic-2024', key: 'МРТ грудного відділу (07.05.2024)' },
-      { id: 'rec-mri-lumbar-2024', key: 'МРТ поперекового відділу (07.05.2024)' },
+      { id: 'rec-mri-cervical-2026', key: 'МРТ шийного відділу (19.10.2026)' },
+      { id: 'rec-mri-thoracic-2026', key: 'МРТ грудного відділу (19.10.2026)' },
+      { id: 'rec-mri-lumbar-2026', key: 'МРТ поперекового відділу (19.10.2026)' },
     ],
+  },
+  {
+    sourceKeys: ['МРТ шийного відділу (07.05.2024)'],
+    items: [{ id: 'rec-mri-cervical-2026', key: 'МРТ шийного відділу (19.10.2026)' }],
+  },
+  {
+    sourceKeys: ['МРТ грудного відділу (07.05.2024)'],
+    items: [{ id: 'rec-mri-thoracic-2026', key: 'МРТ грудного відділу (19.10.2026)' }],
+  },
+  {
+    sourceKeys: ['МРТ поперекового відділу (07.05.2024)'],
+    items: [{ id: 'rec-mri-lumbar-2026', key: 'МРТ поперекового відділу (19.10.2026)' }],
   },
 ];
 
 /**
- * Safely migrates existing localStorage records by splitting unmodified combined
- * "МРТ ШГП" entries into separate Cervical / Thoracic / Lumbar records while
- * preserving any user notes or existing attachment links without data loss.
+ * Safely migrates existing localStorage records by:
+ * 1) Splitting unmodified combined "МРТ ШГП" entries into separate Cervical / Thoracic / Lumbar records.
+ * 2) Replacing erroneous baseline 07.05.2024 MRI entries with actual 19.10.2026 SOR entries.
+ * Preserves any custom records, user notes, or existing attachment links without data loss.
  */
 export function migrateSplitSpineMriRecords(
   records: MedicalExamRecord[],
@@ -342,20 +345,23 @@ export function migrateSplitSpineMriRecords(
 
   const result: MedicalExamRecord[] = [];
   for (const rec of records) {
-    const group = SPLIT_SPINE_MRI_GROUPS.find((g) => g.combinedKey === rec.originalIndexTitle);
+    const group =
+      !rec.isCustom
+        ? SPLIT_SPINE_MRI_GROUPS.find((g) => g.sourceKeys.includes(rec.originalIndexTitle))
+        : undefined;
     if (!group) {
       result.push(rec);
       continue;
     }
 
-    const splitEntries: MedicalExamRecord[] = [];
+    const replacementEntries: MedicalExamRecord[] = [];
     for (const item of group.items) {
       const meta = KNOWN_RECORDS_MAP[item.key];
       if (!meta) continue;
       if (existingKeys.has(item.id) || existingKeys.has(`${item.key}|${meta.date}`)) continue;
       existingKeys.add(item.id);
       existingKeys.add(`${item.key}|${meta.date}`);
-      splitEntries.push({
+      replacementEntries.push({
         id: item.id,
         originalIndexTitle: item.key,
         title: meta.title,
@@ -369,13 +375,12 @@ export function migrateSplitSpineMriRecords(
     const hasLinksOrNotes =
       linkedRecordIds.has(rec.id) || (typeof rec.notes === 'string' && rec.notes.trim().length > 0);
     if (hasLinksOrNotes) {
-      // Keep the old combined record so existing links/notes remain intact, and add split entries alongside
-      result.push(rec, ...splitEntries);
-    } else if (splitEntries.length > 0) {
-      result.push(...splitEntries);
-    } else {
-      result.push(rec);
+      // Keep the old record so existing links/notes remain intact, and add updated entries alongside
+      result.push(rec, ...replacementEntries);
+    } else if (replacementEntries.length > 0) {
+      result.push(...replacementEntries);
     }
+    // If unmodified and target entries already exist, drop the duplicate outdated baseline entry cleanly
   }
 
   return result;
@@ -601,9 +606,9 @@ export const ANONYMIZED_DEFAULT_MEDICAL_CARD: RawMedicalCardJson = {
     'МРТ ГП відділу (22.02.2022)',
     'МРТ ангіографія артерій голови (19.07.2025)',
     'МРТ головного мозку (19.07.2025)',
-    'МРТ шийного відділу (07.05.2024)',
-    'МРТ грудного відділу (07.05.2024)',
-    'МРТ поперекового відділу (07.05.2024)',
+    'МРТ шийного відділу (19.10.2026)',
+    'МРТ грудного відділу (19.10.2026)',
+    'МРТ поперекового відділу (19.10.2026)',
     'УЗД судин шиї та голови (04.08.2025)',
     'УЗД судин верхніх кінцівок (04.08.2025)',
     'УЗД вен нижніх кінцівок (04.08.2025)',
