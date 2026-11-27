@@ -11,6 +11,7 @@ import {
   X,
   AlertCircle,
   ArrowUpRight,
+  ArrowUpDown,
   ChevronDown,
   Sparkles,
 } from 'lucide-react';
@@ -31,7 +32,13 @@ import {
   normalizeAttachmentSource,
   parseAttachmentUrlsInput,
 } from '../data/recordsLocalization';
-import { AttachmentLink, AttachmentSource, Language, MedicalExamRecord } from '../types/medical';
+import {
+  AttachmentLink,
+  AttachmentSource,
+  Language,
+  MedicalExamRecord,
+  RecordCategory,
+} from '../types/medical';
 import { ConfirmModal } from './ConfirmModal';
 
 function formatRecordOptionLabel(record: MedicalExamRecord, language: Language): string {
@@ -40,6 +47,30 @@ function formatRecordOptionLabel(record: MedicalExamRecord, language: Language):
 }
 
 const SOURCE_ORDER: AttachmentSource[] = ['gdrive', 'cloud', 'clinic', 'other'];
+const CATEGORY_ORDER: RecordCategory[] = ['mri', 'ultrasound', 'discharge', 'lab', 'other'];
+
+function hasDateToken(raw: string): boolean {
+  return (
+    /\d{2}\.\d{2}\.\d{4}/.test(raw) ||
+    /\d{4}-\d{2}-\d{2}/.test(raw) ||
+    /\b(19\d{2}|20\d{2})\b/.test(raw)
+  );
+}
+
+function categoryBadgeClasses(category: RecordCategory): string {
+  switch (category) {
+    case 'mri':
+      return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-800/80 dark:bg-blue-950/50 dark:text-blue-300';
+    case 'ultrasound':
+      return 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-800/80 dark:bg-teal-950/50 dark:text-teal-300';
+    case 'discharge':
+      return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-800/80 dark:bg-violet-950/50 dark:text-violet-300';
+    case 'lab':
+      return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/80 dark:bg-amber-950/50 dark:text-amber-300';
+    default:
+      return 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300';
+  }
+}
 
 function sourceBadgeClasses(source: AttachmentSource): string {
   switch (source) {
@@ -70,7 +101,9 @@ export const LinksArchiveView: React.FC = () => {
   } = useMedicalArchive();
 
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | RecordCategory>('all');
   const [sourceFilter, setSourceFilter] = useState<'all' | AttachmentSource>('all');
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
@@ -355,37 +388,75 @@ export const LinksArchiveView: React.FC = () => {
     }
   };
 
+  const recordById = useMemo(() => {
+    const map = new Map<string, MedicalExamRecord>();
+    records.forEach((r) => map.set(r.id, r));
+    return map;
+  }, [records]);
+
   const normalizedAttachments = useMemo(
     () =>
       attachments.map((item) => {
         const itemUrls = getAttachmentUrls(item);
+        const linkedRecord = item.linkedRecordId ? recordById.get(item.linkedRecordId) : undefined;
+        let resolvedCategory: RecordCategory;
+        if (linkedRecord) {
+          resolvedCategory = linkedRecord.category;
+        } else {
+          const inferred = inferCategoryFromText(item.title);
+          resolvedCategory = inferred === 'other' && item.linkedSegment ? 'mri' : inferred;
+        }
+
+        const sortDate = hasDateToken(item.date)
+          ? extractSortDate(item.date)
+          : linkedRecord?.sortDate ||
+            (hasDateToken(item.title) ? extractSortDate(item.title) : '0000-00-00');
+
         return {
           ...item,
-          url: itemUrls[0] || item.url,
+          url: itemUrls[0] || item.url || '',
           urls: itemUrls,
           source: normalizeAttachmentSource(item.source, item.url, itemUrls),
+          category: resolvedCategory,
+          sortDate,
         };
       }),
-    [attachments],
+    [attachments, recordById],
   );
 
   const filteredLinks = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return normalizedAttachments.filter((item) => {
-      if (sourceFilter !== 'all' && item.source !== sourceFilter) return false;
-      if (!q) return true;
-      return (
-        item.title.toLowerCase().includes(q) ||
-        item.url.toLowerCase().includes(q) ||
-        item.urls.some((u) => u.toLowerCase().includes(q)) ||
-        item.linkedSegment.toLowerCase().includes(q) ||
-        getSpineSegmentLinkLabel(item.linkedSegment, language).toLowerCase().includes(q) ||
-        item.notes.toLowerCase().includes(q)
-      );
-    });
-  }, [normalizedAttachments, sourceFilter, search, language]);
+    return normalizedAttachments
+      .filter((item) => {
+        if (categoryFilter !== 'all' && item.category !== categoryFilter) return false;
+        if (sourceFilter !== 'all' && item.source !== sourceFilter) return false;
+        if (!q) return true;
+        const linkedRec = item.linkedRecordId ? recordById.get(item.linkedRecordId) : undefined;
+        return (
+          item.title.toLowerCase().includes(q) ||
+          item.url.toLowerCase().includes(q) ||
+          item.urls.some((u) => u.toLowerCase().includes(q)) ||
+          item.linkedSegment.toLowerCase().includes(q) ||
+          getSpineSegmentLinkLabel(item.linkedSegment, language).toLowerCase().includes(q) ||
+          (linkedRec ? formatRecordOptionLabel(linkedRec, language).toLowerCase().includes(q) : false) ||
+          item.notes.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const cmp = a.sortDate.localeCompare(b.sortDate);
+        return sortOrder === 'newest' ? -cmp : cmp;
+      });
+  }, [normalizedAttachments, categoryFilter, sourceFilter, search, sortOrder, language, recordById]);
 
-  const counts = useMemo(() => {
+  const categoryCounts = useMemo(() => {
+    const map: Record<string, number> = { all: normalizedAttachments.length };
+    CATEGORY_ORDER.forEach((cat) => {
+      map[cat] = normalizedAttachments.filter((a) => a.category === cat).length;
+    });
+    return map;
+  }, [normalizedAttachments]);
+
+  const sourceCounts = useMemo(() => {
     const map: Record<string, number> = { all: normalizedAttachments.length };
     SOURCE_ORDER.forEach((s) => {
       map[s] = normalizedAttachments.filter((a) => a.source === s).length;
@@ -795,48 +866,88 @@ export const LinksArchiveView: React.FC = () => {
         </section>
       ) : (
         <>
-          <div className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="search"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t.archive.searchPlaceholder}
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100"
-              />
+          {/* Search + Sort + Category Filters (matching Examinations & Discharges) */}
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t.archive.searchPlaceholder}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pr-3 pl-9 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-600 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:focus:bg-slate-800"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value as 'all' | AttachmentSource)}
+                  aria-label={t.archive.sourceLabel}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:border-sky-600 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+                  <option value="all">
+                    {t.archive.allSources} ({sourceCounts.all})
+                  </option>
+                  {SOURCE_ORDER.map((s) => (
+                    <option key={s} value={s}>
+                      {t.archive.sources[s]} ({sourceCounts[s]})
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => setSortOrder((s) => (s === 'newest' ? 'oldest' : 'newest'))}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
+                  {sortOrder === 'newest' ? t.records.sortNewest : t.records.sortOldest}
+                </button>
+                <span className="font-mono text-xs text-slate-500 tabular-nums dark:text-slate-400 whitespace-nowrap">
+                  {t.records.totalCount} {filteredLinks.length}
+                </span>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
               <button
                 type="button"
-                onClick={() => setSourceFilter('all')}
+                onClick={() => setCategoryFilter('all')}
                 className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
-                  sourceFilter === 'all'
+                  categoryFilter === 'all'
                     ? 'bg-slate-900 text-white dark:bg-cyan-600'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300'
+                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white'
                 }`}
               >
-                {t.archive.allSources} ({counts.all})
+                {t.records.allCategories} ({categoryCounts.all})
               </button>
-              {SOURCE_ORDER.map((s) => (
+              {CATEGORY_ORDER.filter(
+                (cat) => cat !== 'other' || categoryCounts.other > 0 || categoryFilter === 'other',
+              ).map((cat) => (
                 <button
-                  key={s}
+                  key={cat}
                   type="button"
-                  onClick={() => setSourceFilter(s)}
+                  onClick={() => setCategoryFilter(cat)}
                   className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
-                    sourceFilter === s
+                    categoryFilter === cat
                       ? 'bg-slate-900 text-white dark:bg-cyan-600'
-                      : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300'
+                      : 'bg-slate-100 text-slate-600 hover:text-slate-900 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white'
                   }`}
                 >
-                  {t.archive.sources[s]} ({counts[s]})
+                  {t.records.categories[cat]} ({categoryCounts[cat]})
                 </button>
               ))}
             </div>
           </div>
 
           <section className="overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            {filteredLinks.length === 0 ? (
+              <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                {t.records.emptySearch}
+              </div>
+            ) : (
             <div className="divide-y divide-slate-200 dark:divide-slate-800">
               {filteredLinks.map((item) => {
                 const linkedRecTitle = item.linkedRecordId
@@ -852,6 +963,13 @@ export const LinksArchiveView: React.FC = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${categoryBadgeClasses(
+                              item.category,
+                            )}`}
+                          >
+                            {t.records.categories[item.category]}
+                          </span>
                           <span
                             className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${sourceBadgeClasses(
                               item.source,
@@ -965,6 +1083,7 @@ export const LinksArchiveView: React.FC = () => {
                 );
               })}
             </div>
+            )}
           </section>
         </>
       )}

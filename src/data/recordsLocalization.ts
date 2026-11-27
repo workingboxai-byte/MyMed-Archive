@@ -224,7 +224,8 @@ export function inferCategoryFromText(text: string): RecordCategory {
     lower.includes('mra') ||
     lower.includes('ангіограф') ||
     lower.includes('ангиограф') ||
-    lower.includes('sor')
+    lower.includes('sor') ||
+    lower.includes('dicom')
   ) {
     return 'mri';
   }
@@ -257,12 +258,19 @@ export function inferCategoryFromText(text: string): RecordCategory {
     lower.includes('цукор') ||
     lower.includes('сахар') ||
     lower.includes('глюкоз') ||
+    lower.includes('гемоглоб') ||
+    lower.includes('hemoglobin') ||
+    lower.includes('холестерин') ||
+    lower.includes('cholesterol') ||
     lower.includes('аналіз') ||
     lower.includes('анализ') ||
     lower.includes('кров') ||
     lower.includes('біохім') ||
     lower.includes('биохим') ||
     lower.includes('гормон') ||
+    lower.includes('сеч') ||
+    lower.includes('моч') ||
+    lower.includes('urine') ||
     lower.includes('lab') ||
     lower.includes('blood')
   ) {

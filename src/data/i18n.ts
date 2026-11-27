@@ -370,7 +370,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       linkedAttachments: 'Прикріплені посилання для сегмента:',
     },
     records: {
-      sectionTitle: 'Інші обстеження та виписки',
+      sectionTitle: 'Обстеження та виписки',
       sectionSubtitle: 'Хронологічний індекс попередніх МРТ, УЗД судин та органів, стаціонарних виписок і лабораторних аналізів',
       searchPlaceholder: 'Пошук за назвою, датою або нотаткою…',
       allCategories: 'Усі записи',
@@ -640,7 +640,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       linkedAttachments: 'Прикрепленные ссылки для сегмента:',
     },
     records: {
-      sectionTitle: 'Остальные обследования и выписки',
+      sectionTitle: 'Обследования и выписки',
       sectionSubtitle: 'Хронологический индекс предыдущих МРТ, УЗИ сосудов и органов, стационарных выписок и лабораторных анализов',
       searchPlaceholder: 'Поиск по названию, дате или заметке…',
       allCategories: 'Все записи',
@@ -910,7 +910,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       linkedAttachments: 'Attached links for this segment:',
     },
     records: {
-      sectionTitle: 'Other Examinations & Discharges',
+      sectionTitle: 'Examinations & Discharges',
       sectionSubtitle: 'Chronological index of prior MRI studies, vascular & abdominal ultrasounds, inpatient discharges, and lab results',
       searchPlaceholder: 'Search by title, date, or clinical note…',
       allCategories: 'All Records',
