@@ -167,6 +167,57 @@ export interface UiDictionary {
     deleteConfirmBody: string;
     autoDetected: string;
   };
+  treatments: {
+    sectionTitle: string;
+    sectionSubtitle: string;
+    addCourse: string;
+    editCourse: string;
+    searchPlaceholder: string;
+    filterAll: string;
+    filterActive: string;
+    filterInpatient: string;
+    filterOutpatient: string;
+    totalCount: string;
+    courseTypeLabel: string;
+    courseTypes: {
+      inpatient: string;
+      outpatient: string;
+    };
+    statusLabel: string;
+    statuses: {
+      active: string;
+      completed: string;
+    };
+    periodLabel: string;
+    periodPlaceholder: string;
+    prescribedByLabel: string;
+    prescribedByPlaceholder: string;
+    linkedRecordLabel: string;
+    linkedRecordNone: string;
+    linkedRecordDischargesGroup: string;
+    linkedRecordOtherGroup: string;
+    linkedRecordPrefix: string;
+    medicationsLabel: string;
+    addMedication: string;
+    medName: string;
+    medNamePlaceholder: string;
+    medDosage: string;
+    medDosagePlaceholder: string;
+    medSchedule: string;
+    medSchedulePlaceholder: string;
+    medDuration: string;
+    medDurationPlaceholder: string;
+    removeMedication: string;
+    noMedications: string;
+    proceduresLabel: string;
+    proceduresPlaceholder: string;
+    emptyTitle: string;
+    emptyBody: string;
+    emptySearch: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBody: string;
+    validationError: string;
+  };
   doctor: {
     docHeaderTitle: string;
     docHeaderSubtitle: string;
@@ -177,6 +228,8 @@ export interface UiDictionary {
     complaintsBlock: string;
     mriTableBlockPrefix: string;
     systemicBlock: string;
+    treatmentsBlock: string;
+    noTreatmentsNote: string;
     otherRecordsBlock: string;
     linksBlock: string;
     noLinksNote: string;
@@ -246,6 +299,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       mri: 'Динаміка МРТ (SOR)',
       atlas3d: '3D-атлас',
       records: 'Обстеження і виписки',
+      treatments: 'Лікування',
       archive: 'Архів посилань',
       doctor: 'Режим для лікаря',
     },
@@ -254,6 +308,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       mri: '16 сегментів • 2025 vs 2026',
       atlas3d: 'Хребет, м’язи та головний мозок',
       records: 'Реєстр досліджень та УЗД',
+      treatments: 'Курси препаратів та призначення',
       archive: 'Google Диск / PDF / DICOM',
       doctor: 'Зведена виписка A4 / PDF',
     },
@@ -438,6 +493,57 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deleteConfirmBody: 'Це посилання буде видалено з локального сховища.',
       autoDetected: 'Автовизначено:',
     },
+    treatments: {
+      sectionTitle: 'Лікування та призначення',
+      sectionSubtitle: 'Структурований облік стаціонарних і амбулаторних курсів, схем прийому препаратів та фізіопроцедур',
+      addCourse: 'Додати курс лікування',
+      editCourse: 'Редагувати курс лікування',
+      searchPlaceholder: 'Пошук за препаратом, лікарем або рекомендаціями…',
+      filterAll: 'Усі',
+      filterActive: 'Приймаю зараз',
+      filterInpatient: 'Стаціонар',
+      filterOutpatient: 'Амбулаторно',
+      totalCount: 'Курсів:',
+      courseTypeLabel: 'Тип курсу',
+      courseTypes: {
+        inpatient: 'Стаціонар',
+        outpatient: 'Амбулаторно / Після виписки',
+      },
+      statusLabel: 'Статус',
+      statuses: {
+        active: 'Приймаю зараз',
+        completed: 'Завершено',
+      },
+      periodLabel: 'Період / дата призначення',
+      periodPlaceholder: '04.03.2025 – 13.03.2025',
+      prescribedByLabel: 'Хто призначив (лікар / спеціальність)',
+      prescribedByPlaceholder: 'Невропатолог стаціонару',
+      linkedRecordLabel: 'Прив’язка до виписки / обстеження',
+      linkedRecordNone: 'Без прив’язки до виписки',
+      linkedRecordDischargesGroup: 'Виписки та епікриз',
+      linkedRecordOtherGroup: 'Інші обстеження',
+      linkedRecordPrefix: 'Виписка:',
+      medicationsLabel: 'Список препаратів',
+      addMedication: 'Додати препарат',
+      medName: 'Назва препарату',
+      medNamePlaceholder: 'Мідокалм / Дексалгін…',
+      medDosage: 'Дозування',
+      medDosagePlaceholder: '150 мг',
+      medSchedule: 'Схема прийому',
+      medSchedulePlaceholder: '1 таб. × 2 р/д після їжі',
+      medDuration: 'Тривалість курсу',
+      medDurationPlaceholder: '10 днів',
+      removeMedication: 'Видалити препарат',
+      noMedications: 'Препарати не вказані',
+      proceduresLabel: 'Фізіопроцедури та рекомендації',
+      proceduresPlaceholder: 'ЛФК, магнітотерапія, обмеження підйому ваги, контрольна ЕНМГ…',
+      emptyTitle: 'Курси лікування ще не додані',
+      emptyBody: 'Додайте стаціонарні або амбулаторні курси зі списком препаратів, дозуванням, схемою прийому та фізіопроцедурами — вони збережуться у браузері та автоматично потраплять до режиму лікаря і JSON-архіву.',
+      emptySearch: 'За вашим запитом курсів лікування не знайдено.',
+      deleteConfirmTitle: 'Видалити курс лікування?',
+      deleteConfirmBody: 'Цей курс лікування буде видалено з локального сховища.',
+      validationError: 'Вкажіть лікаря або додайте хоча б один препарат чи рекомендацію.',
+    },
     doctor: {
       docHeaderTitle: 'Клінічна зведена виписка пацієнта',
       docHeaderSubtitle: 'Динаміка МРТ хребта (SOR 2025–2026) та анамнестичний огляд',
@@ -448,8 +554,10 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       complaintsBlock: '3. Основні скарги за анатомічними зонами',
       mriTableBlockPrefix: '4. Посегментна динаміка МРТ хребта (SOR: 25.01.2025 → 19.10.2026',
       systemicBlock: '5. Системні знахідки протоколу SOR',
-      otherRecordsBlock: '6. Індекс попередніх обстежень та виписок',
-      linksBlock: '7. Посилання на документи та матеріали (Google Диск / DICOM)',
+      treatmentsBlock: '6. Актуальні та останні курси лікування',
+      noTreatmentsNote: 'Курси лікування ще не додано.',
+      otherRecordsBlock: '7. Індекс попередніх обстежень та виписок',
+      linksBlock: '8. Посилання на документи та матеріали (Google Диск / DICOM)',
       noLinksNote: 'Зовнішні посилання ще не додано до архіву.',
       generatedAt: 'Дата формування:',
       languageForPrint: 'Мова виписки:',
@@ -516,6 +624,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       mri: 'Динамика МРТ (SOR)',
       atlas3d: '3D-атлас',
       records: 'Обследования и выписки',
+      treatments: 'Лечение',
       archive: 'Архив ссылок',
       doctor: 'Режим для врача',
     },
@@ -524,6 +633,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       mri: '16 сегментов • 2025 vs 2026',
       atlas3d: 'Позвоночник, мышцы и мозг',
       records: 'Реестр исследований и УЗИ',
+      treatments: 'Курсы препаратов и назначения',
       archive: 'Google Диск / PDF / DICOM',
       doctor: 'Сводная выписка A4 / PDF',
     },
@@ -708,6 +818,57 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deleteConfirmBody: 'Эта ссылка будет удалена из локального хранилища.',
       autoDetected: 'Автоопределено:',
     },
+    treatments: {
+      sectionTitle: 'Лечение и назначения',
+      sectionSubtitle: 'Структурированный учет стационарных и амбулаторных курсов, схем приема препаратов и физиопроцедур',
+      addCourse: 'Добавить курс лечения',
+      editCourse: 'Редактировать курс лечения',
+      searchPlaceholder: 'Поиск по препарату, врачу или рекомендациям…',
+      filterAll: 'Все',
+      filterActive: 'Принимаю сейчас',
+      filterInpatient: 'Стационар',
+      filterOutpatient: 'Амбулаторно',
+      totalCount: 'Курсов:',
+      courseTypeLabel: 'Тип курса',
+      courseTypes: {
+        inpatient: 'Стационар',
+        outpatient: 'Амбулаторно / После выписки',
+      },
+      statusLabel: 'Статус',
+      statuses: {
+        active: 'Принимаю сейчас',
+        completed: 'Завершено',
+      },
+      periodLabel: 'Период / дата назначения',
+      periodPlaceholder: '04.03.2025 – 13.03.2025',
+      prescribedByLabel: 'Кто назначил (врач / специальность)',
+      prescribedByPlaceholder: 'Невропатолог стационара',
+      linkedRecordLabel: 'Привязка к выписке / обследованию',
+      linkedRecordNone: 'Без привязки к выписке',
+      linkedRecordDischargesGroup: 'Выписки и эпикриз',
+      linkedRecordOtherGroup: 'Другие обследования',
+      linkedRecordPrefix: 'Выписка:',
+      medicationsLabel: 'Список препаратов',
+      addMedication: 'Добавить препарат',
+      medName: 'Название препарата',
+      medNamePlaceholder: 'Мидокалм / Дексалгин…',
+      medDosage: 'Дозировка',
+      medDosagePlaceholder: '150 мг',
+      medSchedule: 'Схема приема',
+      medSchedulePlaceholder: '1 таб. × 2 р/д после еды',
+      medDuration: 'Длительность курса',
+      medDurationPlaceholder: '10 дней',
+      removeMedication: 'Удалить препарат',
+      noMedications: 'Препараты не указаны',
+      proceduresLabel: 'Физиопроцедуры и рекомендации',
+      proceduresPlaceholder: 'ЛФК, магнитотерапия, ограничение подъема тяжестей, контрольная ЭНМГ…',
+      emptyTitle: 'Курсы лечения пока не добавлены',
+      emptyBody: 'Добавьте стационарные или амбулаторные курсы со списком препаратов, дозировкой, схемой приема и физиопроцедурами — они сохранятся в браузере и автоматически попадут в режим врача и JSON-архив.',
+      emptySearch: 'По вашему запросу курсов лечения не найдено.',
+      deleteConfirmTitle: 'Удалить курс лечения?',
+      deleteConfirmBody: 'Этот курс лечения будет удален из локального хранилища.',
+      validationError: 'Укажите врача или добавьте хотя бы один препарат или рекомендацию.',
+    },
     doctor: {
       docHeaderTitle: 'Клиническая сводная выписка пациента',
       docHeaderSubtitle: 'Динамика МРТ позвоночника (SOR 2025–2026) и анамнестический обзор',
@@ -718,8 +879,10 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       complaintsBlock: '3. Основные жалобы по анатомическим зонам',
       mriTableBlockPrefix: '4. Посегментная динамика МРТ позвоночника (SOR: 25.01.2025 → 19.10.2026',
       systemicBlock: '5. Системные находки протокола SOR',
-      otherRecordsBlock: '6. Индекс предыдущих обследований и выписок',
-      linksBlock: '7. Ссылки на документы и материалы (Google Диск / DICOM)',
+      treatmentsBlock: '6. Актуальные и последние курсы лечения',
+      noTreatmentsNote: 'Курсы лечения еще не добавлены.',
+      otherRecordsBlock: '7. Индекс предыдущих обследований и выписок',
+      linksBlock: '8. Ссылки на документы и материалы (Google Диск / DICOM)',
       noLinksNote: 'Внешние ссылки еще не добавлены в архив.',
       generatedAt: 'Дата формирования:',
       languageForPrint: 'Язык выписки:',
@@ -786,6 +949,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       mri: 'Spine MRI (SOR)',
       atlas3d: '3D Atlas',
       records: 'Exams & Discharges',
+      treatments: 'Treatments',
       archive: 'Links Archive',
       doctor: 'Doctor View',
     },
@@ -794,6 +958,7 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       mri: '16 segments • 2025 vs 2026',
       atlas3d: 'Spine, muscles & brain vessels',
       records: 'Prior MRI, ultrasound & labs',
+      treatments: 'Medication courses & therapy',
       archive: 'Google Drive / PDF / DICOM',
       doctor: 'Printable A4 / PDF summary',
     },
@@ -978,6 +1143,57 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deleteConfirmBody: 'This link will be removed from your local browser storage.',
       autoDetected: 'Auto-detected:',
     },
+    treatments: {
+      sectionTitle: 'Treatments & Prescriptions',
+      sectionSubtitle: 'Structured log of inpatient and outpatient courses, medication regimens, and physiotherapy recommendations',
+      addCourse: 'Add Treatment Course',
+      editCourse: 'Edit Treatment Course',
+      searchPlaceholder: 'Search by medication, physician, or recommendation…',
+      filterAll: 'All',
+      filterActive: 'Taking Now',
+      filterInpatient: 'Inpatient',
+      filterOutpatient: 'Outpatient',
+      totalCount: 'Courses:',
+      courseTypeLabel: 'Course Type',
+      courseTypes: {
+        inpatient: 'Inpatient',
+        outpatient: 'Outpatient / Post-discharge',
+      },
+      statusLabel: 'Status',
+      statuses: {
+        active: 'Taking Now',
+        completed: 'Completed',
+      },
+      periodLabel: 'Period / Prescription Date',
+      periodPlaceholder: '04.03.2025 – 13.03.2025',
+      prescribedByLabel: 'Prescribed By (Physician / Specialty)',
+      prescribedByPlaceholder: 'Inpatient Neurologist',
+      linkedRecordLabel: 'Link to Discharge / Examination',
+      linkedRecordNone: 'No linked discharge',
+      linkedRecordDischargesGroup: 'Discharges & Epicrisis',
+      linkedRecordOtherGroup: 'Other Examinations',
+      linkedRecordPrefix: 'Discharge:',
+      medicationsLabel: 'Medications',
+      addMedication: 'Add Medication',
+      medName: 'Medication',
+      medNamePlaceholder: 'Tolperisone / Dexketoprofen…',
+      medDosage: 'Dosage',
+      medDosagePlaceholder: '150 mg',
+      medSchedule: 'Schedule',
+      medSchedulePlaceholder: '1 tab × 2/day after meals',
+      medDuration: 'Duration',
+      medDurationPlaceholder: '10 days',
+      removeMedication: 'Remove medication',
+      noMedications: 'No medications listed',
+      proceduresLabel: 'Physiotherapy & Recommendations',
+      proceduresPlaceholder: 'Physical therapy, magnetotherapy, lifting restrictions, follow-up ENMG…',
+      emptyTitle: 'No treatment courses recorded yet',
+      emptyBody: 'Add inpatient or outpatient treatment courses with medications, dosages, schedules, and physiotherapy notes—they persist locally and automatically appear in Doctor View and JSON exports.',
+      emptySearch: 'No treatment courses match your current search or filter.',
+      deleteConfirmTitle: 'Delete treatment course?',
+      deleteConfirmBody: 'This treatment course will be removed from local browser storage.',
+      validationError: 'Please specify the prescribing physician or add at least one medication or recommendation.',
+    },
     doctor: {
       docHeaderTitle: 'Clinical Patient Summary Sheet',
       docHeaderSubtitle: 'Spine MRI Progression (SOR 2025–2026) & Anamnesis Overview',
@@ -988,8 +1204,10 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       complaintsBlock: '3. Chief Complaints by Anatomical Zone',
       mriTableBlockPrefix: '4. Segment-by-Segment Spine MRI Dynamics (SOR: 25.01.2025 → 19.10.2026',
       systemicBlock: '5. Systemic SOR Protocol Findings',
-      otherRecordsBlock: '6. Index of Prior Studies & Discharges',
-      linksBlock: '7. Reference Documents & Links (Google Drive / DICOM)',
+      treatmentsBlock: '6. Active & Recent Treatment Courses',
+      noTreatmentsNote: 'No treatment courses recorded yet.',
+      otherRecordsBlock: '7. Index of Prior Studies & Discharges',
+      linksBlock: '8. Reference Documents & Links (Google Drive / DICOM)',
       noLinksNote: 'No external reference links added yet.',
       generatedAt: 'Prepared on:',
       languageForPrint: 'Summary language:',

@@ -623,4 +623,5 @@ export const ANONYMIZED_DEFAULT_MEDICAL_CARD: RawMedicalCardJson = {
     'УЗД артерій нижніх кінцівок (04.08.2025)',
   ],
   attachments_and_links: [],
+  treatments: [],
 };

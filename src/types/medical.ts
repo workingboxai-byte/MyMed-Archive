@@ -5,6 +5,7 @@ export type NavSection =
   | 'mri'
   | 'atlas3d'
   | 'records'
+  | 'treatments'
   | 'archive'
   | 'doctor';
 
@@ -123,6 +124,29 @@ export interface AttachmentLink {
   notes: string;
 }
 
+export type TreatmentCourseType = 'inpatient' | 'outpatient';
+export type TreatmentCourseStatus = 'active' | 'completed';
+
+export interface PrescribedMedication {
+  id: string;
+  name: string;
+  dosage: string;
+  schedule: string;
+  duration: string;
+}
+
+export interface TreatmentCourse {
+  id: string;
+  courseType: TreatmentCourseType;
+  status: TreatmentCourseStatus;
+  period: string;
+  sortDate: string;
+  prescribedBy: string;
+  medications: PrescribedMedication[];
+  proceduresAndRecommendations: string;
+  linkedRecordId: string;
+}
+
 export interface MedicalCardMeta {
   schema_version: string;
   exported_at: string;
@@ -147,4 +171,5 @@ export interface RawMedicalCardJson {
   attachments_and_links: AttachmentLink[];
   // Optional extended fields preserved on export/import
   extended_records?: MedicalExamRecord[];
+  treatments?: TreatmentCourse[];
 }

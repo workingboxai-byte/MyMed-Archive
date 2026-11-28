@@ -8,10 +8,13 @@ import {
   MedicalExamRecord,
   NavSection,
   PatientProfile,
+  PrescribedMedication,
   RawMedicalCardJson,
+  TreatmentCourse,
 } from '../types/medical';
 import {
   ANONYMIZED_DEFAULT_MEDICAL_CARD,
+  extractSortDate,
   getAttachmentUrls,
   migrateSplitSpineMriRecords,
   normalizeAttachmentSource,
@@ -33,6 +36,7 @@ interface StoredState {
   sorMeta: RawMedicalCardJson['sor_spine_mri_comparison'];
   records: MedicalExamRecord[];
   attachments: AttachmentLink[];
+  treatments: TreatmentCourse[];
 }
 
 export interface ToastMessage {
@@ -64,11 +68,15 @@ interface MedicalArchiveContextValue {
   sorMeta: RawMedicalCardJson['sor_spine_mri_comparison'];
   records: MedicalExamRecord[];
   attachments: AttachmentLink[];
+  treatments: TreatmentCourse[];
   updateProfile: (next: PatientProfile) => void;
   updateComplaint: (key: ComplaintZoneKey, next: ComplaintZone) => void;
   addRecord: (record: Omit<MedicalExamRecord, 'id'>) => string;
   updateRecord: (id: string, next: Partial<MedicalExamRecord>) => void;
   deleteRecord: (id: string) => void;
+  addTreatment: (course: Omit<TreatmentCourse, 'id'>) => string;
+  updateTreatment: (id: string, next: Partial<TreatmentCourse>) => void;
+  deleteTreatment: (id: string) => void;
   addAttachment: (item: Omit<AttachmentLink, 'id'>) => void;
   addAttachmentsBatch: (items: Omit<AttachmentLink, 'id'>[]) => void;
   updateAttachment: (id: string, next: Partial<AttachmentLink>) => void;
@@ -102,11 +110,49 @@ function normalizeAttachmentsList(items: unknown): AttachmentLink[] {
   });
 }
 
+function normalizeTreatmentsList(items: unknown): TreatmentCourse[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((rawItem, idx) => {
+    const item = rawItem as Partial<TreatmentCourse>;
+    const period = typeof item.period === 'string' ? item.period.trim() : '';
+    const rawMeds = Array.isArray(item.medications) ? item.medications : [];
+    const medications: PrescribedMedication[] = rawMeds
+      .map((rawMed, mIdx) => {
+        const med = rawMed as Partial<PrescribedMedication>;
+        return {
+          id: med.id || `med-${Date.now()}-${idx}-${mIdx}`,
+          name: typeof med.name === 'string' ? med.name.trim() : '',
+          dosage: typeof med.dosage === 'string' ? med.dosage.trim() : '',
+          schedule: typeof med.schedule === 'string' ? med.schedule.trim() : '',
+          duration: typeof med.duration === 'string' ? med.duration.trim() : '',
+        };
+      })
+      .filter((m) => m.name || m.dosage || m.schedule || m.duration);
+
+    return {
+      id: item.id || `trt-${Date.now()}-${idx}`,
+      courseType: item.courseType === 'inpatient' ? 'inpatient' : 'outpatient',
+      status: item.status === 'active' ? 'active' : 'completed',
+      period: period || '—',
+      sortDate: item.sortDate || (period ? extractSortDate(period) : '2025-01-01'),
+      prescribedBy: typeof item.prescribedBy === 'string' ? item.prescribedBy.trim() : '',
+      medications,
+      proceduresAndRecommendations:
+        typeof item.proceduresAndRecommendations === 'string'
+          ? item.proceduresAndRecommendations.trim()
+          : '',
+      linkedRecordId: typeof item.linkedRecordId === 'string' ? item.linkedRecordId : '',
+    };
+  });
+}
+
 function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
   const attachments = normalizeAttachmentsList(raw.attachments_and_links);
-  const linkedRecordIds = new Set(
-    attachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
-  );
+  const treatments = normalizeTreatmentsList(raw.treatments);
+  const linkedRecordIds = new Set([
+    ...attachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
+    ...treatments.map((tr) => tr.linkedRecordId).filter((id): id is string => Boolean(id)),
+  ]);
 
   const parsedRecords =
     Array.isArray(raw.extended_records) && raw.extended_records.length > 0
@@ -128,6 +174,7 @@ function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
     },
     records: baseRecords,
     attachments,
+    treatments,
   };
 }
 
@@ -137,14 +184,19 @@ function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): 
     return defaults;
   }
 
-  // Never overwrite existing user attachments with an empty template during schema updates
+  // Never overwrite existing user attachments or treatments with an empty template during schema updates
   const preservedAttachments = Array.isArray(parsed.attachments)
     ? normalizeAttachmentsList(parsed.attachments)
     : defaults.attachments;
 
-  const linkedRecordIds = new Set(
-    preservedAttachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
-  );
+  const preservedTreatments = Array.isArray(parsed.treatments)
+    ? normalizeTreatmentsList(parsed.treatments)
+    : defaults.treatments;
+
+  const linkedRecordIds = new Set([
+    ...preservedAttachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
+    ...preservedTreatments.map((tr) => tr.linkedRecordId).filter((id): id is string => Boolean(id)),
+  ]);
 
   const mergedRecords =
     Array.isArray(parsed.records) && parsed.records.length > 0
@@ -160,6 +212,7 @@ function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): 
     sorMeta: parsed.sorMeta ? { ...defaults.sorMeta, ...parsed.sorMeta } : defaults.sorMeta,
     records: mergedRecords,
     attachments: preservedAttachments,
+    treatments: preservedTreatments,
   };
 }
 
@@ -342,6 +395,41 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     [language, showToast],
   );
 
+  const addTreatment = useCallback(
+    (course: Omit<TreatmentCourse, 'id'>): string => {
+      const id = `trt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setState((prev) => ({
+        ...prev,
+        treatments: [{ ...course, id }, ...prev.treatments],
+      }));
+      showToast(UI_DICT[language].jsonModal.savedToast, 'success');
+      return id;
+    },
+    [language, showToast],
+  );
+
+  const updateTreatment = useCallback(
+    (id: string, next: Partial<TreatmentCourse>) => {
+      setState((prev) => ({
+        ...prev,
+        treatments: prev.treatments.map((tr) => (tr.id === id ? { ...tr, ...next } : tr)),
+      }));
+      showToast(UI_DICT[language].jsonModal.savedToast, 'success');
+    },
+    [language, showToast],
+  );
+
+  const deleteTreatment = useCallback(
+    (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        treatments: prev.treatments.filter((tr) => tr.id !== id),
+      }));
+      showToast(UI_DICT[language].jsonModal.deletedToast, 'info');
+    },
+    [language, showToast],
+  );
+
   const addAttachment = useCallback(
     (item: Omit<AttachmentLink, 'id'>) => {
       const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -410,6 +498,7 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
       ),
       attachments_and_links: state.attachments,
       extended_records: state.records,
+      treatments: state.treatments,
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -434,11 +523,15 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
         const normalized = normalizeRawJsonToState(parsed);
         setState((prev) => ({
           ...normalized,
-          // Preserve existing user attachments if imported JSON omits or has an empty attachments list
+          // Preserve existing user attachments/treatments if imported JSON omits or has an empty array
           attachments:
             Array.isArray(parsed.attachments_and_links) && parsed.attachments_and_links.length > 0
               ? normalized.attachments
               : prev.attachments,
+          treatments:
+            Array.isArray(parsed.treatments) && parsed.treatments.length > 0
+              ? normalized.treatments
+              : prev.treatments,
         }));
         showToast(UI_DICT[language].jsonModal.importSuccess, 'success');
         return { ok: true };
@@ -483,11 +576,15 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     sorMeta: state.sorMeta,
     records: state.records,
     attachments: state.attachments,
+    treatments: state.treatments,
     updateProfile,
     updateComplaint,
     addRecord,
     updateRecord,
     deleteRecord,
+    addTreatment,
+    updateTreatment,
+    deleteTreatment,
     addAttachment,
     addAttachmentsBatch,
     updateAttachment,

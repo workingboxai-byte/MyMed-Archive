@@ -29,8 +29,31 @@ export const DoctorView: React.FC = () => {
     complaints,
     records,
     attachments,
+    treatments,
     setActiveSection,
   } = useMedicalArchive();
+
+  const doctorTreatments = React.useMemo(() => {
+    const activeCourses = treatments
+      .filter((tr) => tr.status === 'active')
+      .sort((a, b) => b.sortDate.localeCompare(a.sortDate));
+    const recentCompleted = treatments
+      .filter((tr) => tr.status !== 'active')
+      .sort((a, b) => b.sortDate.localeCompare(a.sortDate))
+      .slice(0, 4);
+    return [...activeCourses, ...recentCompleted];
+  }, [treatments]);
+
+  const recordLabelById = React.useMemo(() => {
+    const map = new Map<string, string>();
+    records.forEach((r) => {
+      map.set(
+        r.id,
+        r.date && r.date !== '—' ? `${r.title[language]} (${r.date})` : r.title[language],
+      );
+    });
+    return map;
+  }, [records, language]);
 
   const currentYear = 2026;
   const age = Math.max(0, currentYear - profile.birth_year);
@@ -317,7 +340,88 @@ export const DoctorView: React.FC = () => {
           </div>
         </section>
 
-        {/* Block 6: Chronological Index of Prior Studies */}
+        {/* Block 6: Active & Recent Treatment Courses */}
+        <section className="print-avoid-break mt-4 border-b border-slate-200 pb-3.5">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-900">
+            {t.doctor.treatmentsBlock}
+            {treatments.length > 0 ? ` (${doctorTreatments.length})` : ''}
+          </h2>
+          {doctorTreatments.length === 0 ? (
+            <p className="mt-1.5 text-xs italic text-slate-500">{t.doctor.noTreatmentsNote}</p>
+          ) : (
+            <ul className="mt-2 space-y-2 text-[11px] leading-snug text-slate-700">
+              {doctorTreatments.map((course) => {
+                const linkedRecLabel = course.linkedRecordId
+                  ? recordLabelById.get(course.linkedRecordId)
+                  : null;
+                return (
+                  <li
+                    key={course.id}
+                    className={`rounded border border-slate-200 px-2.5 py-1.5 ${
+                      course.status === 'active'
+                        ? 'border-l-4 border-l-emerald-600 bg-emerald-50/35'
+                        : 'bg-slate-50/40'
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                      <div className="flex flex-wrap items-baseline gap-x-1.5">
+                        <span
+                          className={`font-semibold ${
+                            course.status === 'active' ? 'text-emerald-800' : 'text-slate-600'
+                          }`}
+                        >
+                          [{t.treatments.statuses[course.status]}]
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          {course.prescribedBy || t.treatments.courseTypes[course.courseType]}
+                        </span>
+                        <span className="text-slate-500">
+                          · {t.treatments.courseTypes[course.courseType]}
+                        </span>
+                        {linkedRecLabel && (
+                          <span className="text-slate-500">
+                            · {t.treatments.linkedRecordPrefix} {linkedRecLabel}
+                          </span>
+                        )}
+                      </div>
+                      {course.period && course.period !== '—' && (
+                        <span className="shrink-0 font-mono text-[10.5px] text-slate-500 tabular-nums">
+                          {course.period}
+                        </span>
+                      )}
+                    </div>
+
+                    {course.medications.length > 0 && (
+                      <div className="mt-1 text-slate-800">
+                        {course.medications.map((med, idx) => {
+                          const metaParts = [med.dosage, med.schedule, med.duration].filter(Boolean);
+                          return (
+                            <span key={med.id}>
+                              {idx > 0 ? '; ' : ''}
+                              <strong className="font-medium text-slate-900">{med.name}</strong>
+                              {metaParts.length > 0 ? ` (${metaParts.join(', ')})` : ''}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {course.proceduresAndRecommendations && (
+                      <div className="mt-0.5 text-slate-600">
+                        <span className="font-medium text-slate-700">
+                          {t.treatments.proceduresLabel}:{' '}
+                        </span>
+                        {course.proceduresAndRecommendations}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        {/* Block 7: Chronological Index of Prior Studies */}
         <section className="print-avoid-break mt-4 border-b border-slate-200 pb-3.5">
           <h2 className="text-xs font-bold uppercase tracking-wide text-slate-900">
             {t.doctor.otherRecordsBlock} ({records.length})

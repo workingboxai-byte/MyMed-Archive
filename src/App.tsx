@@ -3,6 +3,7 @@ import {
   Activity,
   Box,
   FileText,
+  Pill,
   FolderGit2,
   Stethoscope,
   UserRound,
@@ -21,6 +22,7 @@ import { MedicalArchiveProvider, useMedicalArchive } from './context/MedicalArch
 import { AnamnesisView } from './components/AnamnesisView';
 import { MriDynamicsView } from './components/MriDynamicsView';
 import { OtherRecordsView } from './components/OtherRecordsView';
+import { TreatmentsView } from './components/TreatmentsView';
 import { LinksArchiveView } from './components/LinksArchiveView';
 import { DoctorView } from './components/DoctorView';
 import { JsonArchiveModal } from './components/JsonArchiveModal';
@@ -33,6 +35,7 @@ const NAV_ITEMS: { id: NavSection; icon: React.ComponentType<{ className?: strin
   { id: 'mri', icon: Activity },
   { id: 'atlas3d', icon: Box },
   { id: 'records', icon: FileText },
+  { id: 'treatments', icon: Pill },
   { id: 'archive', icon: FolderGit2 },
   { id: 'doctor', icon: Stethoscope },
 ];
@@ -50,6 +53,7 @@ const AppShell: React.FC = () => {
     activeSection,
     setActiveSection,
     records,
+    treatments,
     attachments,
     toast,
   } = useMedicalArchive();
@@ -86,6 +90,8 @@ const AppShell: React.FC = () => {
         );
       case 'records':
         return <OtherRecordsView />;
+      case 'treatments':
+        return <TreatmentsView />;
       case 'archive':
         return <LinksArchiveView />;
       case 'doctor':
@@ -97,6 +103,7 @@ const AppShell: React.FC = () => {
     if (id === 'mri') return '16';
     if (id === 'atlas3d') return '3D';
     if (id === 'records') return String(records.length);
+    if (id === 'treatments') return String(treatments.length);
     if (id === 'archive') return String(attachments.length);
     return null;
   };
