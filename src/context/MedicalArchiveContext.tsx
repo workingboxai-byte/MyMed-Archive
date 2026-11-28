@@ -5,6 +5,7 @@ import {
   ComplaintZone,
   ComplaintZoneKey,
   EncryptedVaultPayload,
+  FollowUpTask,
   Language,
   MedicalExamRecord,
   NavSection,
@@ -55,6 +56,7 @@ interface StoredState {
   records: MedicalExamRecord[];
   attachments: AttachmentLink[];
   treatments: TreatmentCourse[];
+  followUpPlan: FollowUpTask[];
 }
 
 export interface ToastMessage {
@@ -87,6 +89,7 @@ interface MedicalArchiveContextValue {
   records: MedicalExamRecord[];
   attachments: AttachmentLink[];
   treatments: TreatmentCourse[];
+  followUpPlan: FollowUpTask[];
   updateProfile: (next: PatientProfile) => void;
   updateComplaint: (key: ComplaintZoneKey, next: ComplaintZone) => void;
   addRecord: (record: Omit<MedicalExamRecord, 'id'>) => string;
@@ -99,6 +102,9 @@ interface MedicalArchiveContextValue {
   addAttachmentsBatch: (items: Omit<AttachmentLink, 'id'>[]) => void;
   updateAttachment: (id: string, next: Partial<AttachmentLink>) => void;
   deleteAttachment: (id: string) => void;
+  addFollowUpTask: (title: string, targetDate: string) => void;
+  toggleFollowUpTask: (id: string) => void;
+  deleteFollowUpTask: (id: string) => void;
   exportJsonFile: () => void;
   importJsonString: (jsonText: string) => { ok: boolean; error?: string };
   resetToInitialJson: () => void;
@@ -184,9 +190,57 @@ function normalizeTreatmentsList(items: unknown): TreatmentCourse[] {
   });
 }
 
+function normalizeFollowUpList(items: unknown): FollowUpTask[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((rawItem, idx) => {
+      const item = rawItem as Partial<FollowUpTask>;
+      const title = typeof item.title === 'string' ? item.title.trim() : '';
+      if (!title) return null;
+      return {
+        id: typeof item.id === 'string' && item.id ? item.id : `fup-${Date.now()}-${idx}`,
+        title,
+        targetDate: typeof item.targetDate === 'string' ? item.targetDate.trim() : '',
+        completed: Boolean(item.completed),
+        createdAt:
+          typeof item.createdAt === 'string' && item.createdAt
+            ? item.createdAt
+            : new Date().toISOString(),
+      };
+    })
+    .filter((entry): entry is FollowUpTask => entry !== null);
+}
+
+const DEFAULT_FOLLOW_UP_TASKS: FollowUpTask[] = [
+  {
+    id: 'fup-default-neurosurgeon',
+    title: 'Консультація нейрохірурга (динаміка L4–L5 та L5–S1)',
+    targetDate: '2026-11',
+    completed: false,
+    createdAt: '2026-10-20T09:00:00.000Z',
+  },
+  {
+    id: 'fup-default-enmg',
+    title: 'ЕНМГ правої верхньої кінцівки / оцінка правого трапецієподібного м’яза',
+    targetDate: '2026-11',
+    completed: false,
+    createdAt: '2026-10-20T09:05:00.000Z',
+  },
+  {
+    id: 'fup-default-mri-control',
+    title: 'Контроль МРТ грудного відділу (гемангіома D6 / D4–D5)',
+    targetDate: '2027-04',
+    completed: false,
+    createdAt: '2026-10-20T09:10:00.000Z',
+  },
+];
+
 function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
   const attachments = normalizeAttachmentsList(raw.attachments_and_links);
   const treatments = normalizeTreatmentsList(raw.treatments);
+  const followUpPlan = Array.isArray(raw.follow_up_plan)
+    ? normalizeFollowUpList(raw.follow_up_plan)
+    : DEFAULT_FOLLOW_UP_TASKS;
   const linkedRecordIds = new Set([
     ...attachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
     ...treatments.map((tr) => tr.linkedRecordId).filter((id): id is string => Boolean(id)),
@@ -213,6 +267,7 @@ function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
     records: baseRecords,
     attachments,
     treatments,
+    followUpPlan,
   };
 }
 
@@ -222,7 +277,7 @@ function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): 
     return defaults;
   }
 
-  // Never overwrite existing user attachments or treatments with an empty template during schema updates
+  // Never overwrite existing user attachments, treatments, or follow-up checklist during schema updates
   const preservedAttachments = Array.isArray(parsed.attachments)
     ? normalizeAttachmentsList(parsed.attachments)
     : defaults.attachments;
@@ -230,6 +285,10 @@ function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): 
   const preservedTreatments = Array.isArray(parsed.treatments)
     ? normalizeTreatmentsList(parsed.treatments)
     : defaults.treatments;
+
+  const preservedFollowUp = Array.isArray(parsed.followUpPlan)
+    ? normalizeFollowUpList(parsed.followUpPlan)
+    : defaults.followUpPlan;
 
   const linkedRecordIds = new Set([
     ...preservedAttachments.map((a) => a.linkedRecordId).filter((id): id is string => Boolean(id)),
@@ -251,6 +310,7 @@ function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): 
     records: mergedRecords,
     attachments: preservedAttachments,
     treatments: preservedTreatments,
+    followUpPlan: preservedFollowUp,
   };
 }
 
@@ -788,6 +848,46 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     [language, showToast],
   );
 
+  const addFollowUpTask = useCallback(
+    (title: string, targetDate: string) => {
+      const cleanTitle = title.trim();
+      if (!cleanTitle) return;
+      const newTask: FollowUpTask = {
+        id: `fup-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: cleanTitle,
+        targetDate: targetDate.trim(),
+        completed: false,
+        createdAt: new Date().toISOString(),
+      };
+      setState((prev) => ({
+        ...prev,
+        followUpPlan: [newTask, ...prev.followUpPlan],
+      }));
+      showToast(UI_DICT[language].jsonModal.savedToast, 'success');
+    },
+    [language, showToast],
+  );
+
+  const toggleFollowUpTask = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      followUpPlan: prev.followUpPlan.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task,
+      ),
+    }));
+  }, []);
+
+  const deleteFollowUpTask = useCallback(
+    (id: string) => {
+      setState((prev) => ({
+        ...prev,
+        followUpPlan: prev.followUpPlan.filter((task) => task.id !== id),
+      }));
+      showToast(UI_DICT[language].jsonModal.deletedToast, 'info');
+    },
+    [language, showToast],
+  );
+
   const exportJsonFile = useCallback(() => {
     const today = new Date().toISOString().slice(0, 10);
     const payload: RawMedicalCardJson = {
@@ -808,6 +908,7 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
       attachments_and_links: state.attachments,
       extended_records: state.records,
       treatments: state.treatments,
+      follow_up_plan: state.followUpPlan,
       // Export strictly SHA-256 PIN hash and AES-GCM encrypted vault ciphertext (never plaintext)
       ...(securityState.pinAuth ? { privacy_security: securityState.pinAuth } : {}),
       ...(securityState.encryptedVault
@@ -837,7 +938,7 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
         const normalized = normalizeRawJsonToState(parsed);
         setState((prev) => ({
           ...normalized,
-          // Preserve existing user attachments/treatments if imported JSON omits or has an empty array
+          // Preserve existing user attachments/treatments/follow-up plan if imported JSON omits them
           attachments:
             Array.isArray(parsed.attachments_and_links) && parsed.attachments_and_links.length > 0
               ? normalized.attachments
@@ -846,6 +947,9 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
             Array.isArray(parsed.treatments) && parsed.treatments.length > 0
               ? normalized.treatments
               : prev.treatments,
+          followUpPlan: Array.isArray(parsed.follow_up_plan)
+            ? normalized.followUpPlan
+            : prev.followUpPlan,
         }));
 
         // Restore encrypted vault & PIN hash if present in imported JSON; otherwise preserve local security state
@@ -909,6 +1013,7 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     records: state.records,
     attachments: state.attachments,
     treatments: state.treatments,
+    followUpPlan: state.followUpPlan,
     updateProfile,
     updateComplaint,
     addRecord,
@@ -921,6 +1026,9 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     addAttachmentsBatch,
     updateAttachment,
     deleteAttachment,
+    addFollowUpTask,
+    toggleFollowUpTask,
+    deleteFollowUpTask,
     exportJsonFile,
     importJsonString,
     resetToInitialJson,

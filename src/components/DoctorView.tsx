@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Printer, ArrowLeft } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import {
@@ -9,6 +9,7 @@ import {
 } from '../data/spineSegmentsData';
 import { ComplaintZoneKey, Language } from '../types/medical';
 import { getAttachmentUrls, isValidHttpUrl } from '../data/recordsLocalization';
+import { DoctorSpine2DSvg } from './DoctorSpine2DSvg';
 
 const ZONE_KEYS: ComplaintZoneKey[] = [
   'lumbar_sacral',
@@ -30,8 +31,16 @@ export const DoctorView: React.FC = () => {
     records,
     attachments,
     treatments,
+    followUpPlan,
     setActiveSection,
   } = useMedicalArchive();
+
+  const [includeSpine2D, setIncludeSpine2D] = useState(true);
+
+  const pendingFollowUp = React.useMemo(
+    () => followUpPlan.filter((task) => !task.completed),
+    [followUpPlan],
+  );
 
   const doctorTreatments = React.useMemo(() => {
     const activeCourses = treatments
@@ -103,6 +112,17 @@ export const DoctorView: React.FC = () => {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Toggle 2D Spine Vector Diagram in A4 / PDF */}
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 select-none transition-colors hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700/80 whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={includeSpine2D}
+              onChange={(e) => setIncludeSpine2D(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-slate-300 text-sky-600 focus:ring-sky-500"
+            />
+            <span>{t.doctorPrint.includeSpine2D}</span>
+          </label>
+
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-500 dark:text-slate-400">
               {t.doctor.languageForPrint}
@@ -226,7 +246,7 @@ export const DoctorView: React.FC = () => {
               return (
                 <div
                   key={item.id}
-                  className={`rounded border border-slate-200 border-l-4 px-3 py-2 text-xs ${accent}`}
+                  className={`print-card rounded border border-slate-200 border-l-4 px-3 py-2 text-xs ${accent}`}
                 >
                   <div className="font-semibold text-slate-900">
                     {item.kicker[language]} — {item.headline[language]}
@@ -238,6 +258,24 @@ export const DoctorView: React.FC = () => {
               );
             })}
           </div>
+
+          {/* Compact pending follow-up checklist line */}
+          {pendingFollowUp.length > 0 && (
+            <div className="print-card mt-2.5 rounded border border-sky-200/90 bg-sky-50/40 px-3 py-1.5 text-[11px] leading-snug text-slate-800">
+              <span className="font-bold text-sky-900">
+                {t.doctorPrint.followUpInlineLabel}:{' '}
+              </span>
+              {pendingFollowUp.map((task, idx) => (
+                <span key={task.id}>
+                  {idx > 0 ? ' · ' : ''}
+                  {task.title}
+                  {task.targetDate ? (
+                    <span className="font-mono text-slate-500"> ({task.targetDate})</span>
+                  ) : null}
+                </span>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Block 3: Chief Complaints by Zone */}
@@ -266,62 +304,78 @@ export const DoctorView: React.FC = () => {
           </div>
         </section>
 
-        {/* Block 4: Compact 16-Segment SOR MRI Comparison Table (anonymized expert label) */}
+        {/* Block 4: Compact 16-Segment SOR MRI Comparison Table + Optional 2D Spine Vector Diagram */}
         <section className="mt-4 border-b border-slate-200 pb-3.5">
           <h2 className="text-xs font-bold uppercase tracking-wide text-slate-900">
             {t.doctor.mriTableBlockPrefix},{' '}
             <span className={hasCustomRadiologist ? blurClass : ''}>{radiologistDisplay}</span>)
           </h2>
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full border-collapse text-left text-[11px] leading-snug">
-              <thead>
-                <tr className="border-y border-slate-300 bg-slate-50 text-slate-700">
-                  <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">
-                    {t.mri.colSegment}
-                  </th>
-                  <th className="px-2 py-1.5 font-semibold">{t.mri.col2025}</th>
-                  <th className="px-2 py-1.5 font-semibold">{t.mri.col2026}</th>
-                  <th className="px-2 py-1.5 font-semibold">{t.mri.colCanalRoots}</th>
-                  <th className="py-1.5 pl-2 font-semibold whitespace-nowrap">
-                    {t.mri.colDynamics}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {DETAILED_SPINE_SEGMENTS.map((seg) => {
-                  const glyph =
-                    seg.status === 'negative' ? '▼' : seg.status === 'new' ? '+' : '●';
-                  const pillClass =
-                    seg.status === 'negative'
-                      ? 'bg-rose-50 text-rose-800 border-rose-200'
-                      : seg.status === 'new'
-                      ? 'bg-amber-50 text-amber-900 border-amber-200'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+          <div
+            className={
+              includeSpine2D
+                ? 'mt-2.5 grid grid-cols-1 items-start gap-3 md:grid-cols-[190px_minmax(0,1fr)] print:grid-cols-[155px_minmax(0,1fr)]'
+                : 'mt-2'
+            }
+          >
+            {includeSpine2D && (
+              <DoctorSpine2DSvg
+                segments={DETAILED_SPINE_SEGMENTS}
+                language={language}
+                t={t}
+              />
+            )}
 
-                  return (
-                    <tr key={seg.id}>
-                      <td className="py-1.5 pr-2 font-mono font-bold text-slate-900 whitespace-nowrap tabular-nums">
-                        {seg.id}
-                      </td>
-                      <td className="px-2 py-1.5 text-slate-700">{seg.y2025.finding[language]}</td>
-                      <td className="px-2 py-1.5 font-medium text-slate-900">
-                        {seg.y2026.finding[language]}
-                      </td>
-                      <td className="px-2 py-1.5 text-slate-600">
-                        {seg.y2026.canal[language]} · {seg.y2026.roots[language]}
-                      </td>
-                      <td className="py-1.5 pl-2 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${pillClass}`}
-                        >
-                          {glyph} {seg.statusLabel[language]}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="min-w-0 overflow-x-auto">
+              <table className="w-full border-collapse text-left text-[11px] leading-snug">
+                <thead>
+                  <tr className="border-y border-slate-300 bg-slate-50 text-slate-700">
+                    <th className="py-1.5 pr-2 font-semibold whitespace-nowrap">
+                      {t.mri.colSegment}
+                    </th>
+                    <th className="px-2 py-1.5 font-semibold">{t.mri.col2025}</th>
+                    <th className="px-2 py-1.5 font-semibold">{t.mri.col2026}</th>
+                    <th className="px-2 py-1.5 font-semibold">{t.mri.colCanalRoots}</th>
+                    <th className="py-1.5 pl-2 font-semibold whitespace-nowrap">
+                      {t.mri.colDynamics}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {DETAILED_SPINE_SEGMENTS.map((seg) => {
+                    const glyph =
+                      seg.status === 'negative' ? '▼' : seg.status === 'new' ? '+' : '●';
+                    const pillClass =
+                      seg.status === 'negative'
+                        ? 'bg-rose-50 text-rose-800 border-rose-200'
+                        : seg.status === 'new'
+                        ? 'bg-amber-50 text-amber-900 border-amber-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200';
+
+                    return (
+                      <tr key={seg.id}>
+                        <td className="py-1.5 pr-2 font-mono font-bold text-slate-900 whitespace-nowrap tabular-nums">
+                          {seg.id}
+                        </td>
+                        <td className="px-2 py-1.5 text-slate-700">{seg.y2025.finding[language]}</td>
+                        <td className="px-2 py-1.5 font-medium text-slate-900">
+                          {seg.y2026.finding[language]}
+                        </td>
+                        <td className="px-2 py-1.5 text-slate-600">
+                          {seg.y2026.canal[language]} · {seg.y2026.roots[language]}
+                        </td>
+                        <td className="py-1.5 pl-2 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${pillClass}`}
+                          >
+                            {glyph} {seg.statusLabel[language]}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
@@ -357,7 +411,7 @@ export const DoctorView: React.FC = () => {
                 return (
                   <li
                     key={course.id}
-                    className={`rounded border border-slate-200 px-2.5 py-1.5 ${
+                    className={`print-treatment-item rounded border border-slate-200 px-2.5 py-1.5 ${
                       course.status === 'active'
                         ? 'border-l-4 border-l-emerald-600 bg-emerald-50/35'
                         : 'bg-slate-50/40'

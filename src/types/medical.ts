@@ -179,6 +179,14 @@ export interface PersonalVaultItem {
   updatedAt: string;
 }
 
+export interface FollowUpTask {
+  id: string;
+  title: string;
+  targetDate: string;
+  completed: boolean;
+  createdAt: string;
+}
+
 export interface MedicalCardMeta {
   schema_version: string;
   exported_at: string;
@@ -204,6 +212,7 @@ export interface RawMedicalCardJson {
   // Optional extended fields preserved on export/import
   extended_records?: MedicalExamRecord[];
   treatments?: TreatmentCourse[];
+  follow_up_plan?: FollowUpTask[];
   // Optional client-side privacy PIN hash (SHA-256) and AES-GCM encrypted Personal Vault
   privacy_security?: PinHashRecord | null;
   encrypted_personal_vault?: EncryptedVaultPayload | null;

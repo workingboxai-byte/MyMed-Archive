@@ -383,6 +383,52 @@ export interface UiDictionary {
     pagePrefix: string;
     jsonEncryptedVaultNote: string;
   };
+  doctorPrint: {
+    includeSpine2D: string;
+    spineDiagramTitle: string;
+    followUpInlineLabel: string;
+  };
+  mobileNav: {
+    profile: string;
+    mri: string;
+    atlas: string;
+    records: string;
+    archive: string;
+    more: string;
+    drawerTitle: string;
+    quickSearch: string;
+  };
+  globalSearch: {
+    buttonLabel: string;
+    placeholder: string;
+    emptyPrompt: string;
+    noResults: string;
+    quickExamplesLabel: string;
+    navigateHint: string;
+    enterHint: string;
+    escHint: string;
+    resultsCount: string;
+    groups: {
+      mri: string;
+      records: string;
+      treatments: string;
+      archive: string;
+      followUp: string;
+    };
+  };
+  followUp: {
+    sectionTitle: string;
+    sectionSubtitle: string;
+    inputPlaceholder: string;
+    datePlaceholder: string;
+    addBtn: string;
+    emptyText: string;
+    completedOf: string;
+    pendingCount: string;
+    deleteLabel: string;
+    markDoneLabel: string;
+    markUndoneLabel: string;
+  };
 }
 
 export const UI_DICT: Record<Language, UiDictionary> = {
@@ -801,6 +847,52 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       pagePrefix: 'Посилання',
       jsonEncryptedVaultNote: 'Особистий сейф експортується у JSON виключно в зашифрованому вигляді (AES-GCM).',
     },
+    doctorPrint: {
+      includeSpine2D: 'Включити 2D-схему хребта',
+      spineDiagramTitle: '2D-схема хребта (SOR 2026)',
+      followUpInlineLabel: 'План контролю',
+    },
+    mobileNav: {
+      profile: 'Профіль',
+      mri: 'МРТ',
+      atlas: 'Атлас',
+      records: 'Записи',
+      archive: 'Архів',
+      more: 'Ще',
+      drawerTitle: 'Додаткові розділи',
+      quickSearch: 'Швидкий пошук',
+    },
+    globalSearch: {
+      buttonLabel: 'Пошук',
+      placeholder: 'Пошук по МРТ (L4-L5, D6), обстеженнях, препаратах, посиланнях…',
+      emptyPrompt: 'Почніть вводити сегмент МРТ, назву препарату, обстеження або посилання.',
+      noResults: 'За вашим запитом нічого не знайдено.',
+      quickExamplesLabel: 'Швидкі запити:',
+      navigateHint: 'навігація',
+      enterHint: 'перейти',
+      escHint: 'закрити',
+      resultsCount: 'Знайдено:',
+      groups: {
+        mri: 'Сегменти МРТ (SOR)',
+        records: 'Обстеження та виписки',
+        treatments: 'Лікування та препарати',
+        archive: 'Архів посилань',
+        followUp: 'План контролю',
+      },
+    },
+    followUp: {
+      sectionTitle: 'План контролю / Наступні кроки',
+      sectionSubtitle: 'Чеклист запланованих дообстежень та консультацій — невиконані пункти автоматично виводяться у «Режимі для лікаря».',
+      inputPlaceholder: 'Наприклад: ЕНМГ правої руки або контроль МРТ через 6 міс.',
+      datePlaceholder: 'Термін / дата',
+      addBtn: 'Додати',
+      emptyText: 'Список запланованих контролів порожній. Додайте наступні кроки обстеження.',
+      completedOf: 'виконано',
+      pendingCount: 'Заплановано',
+      deleteLabel: 'Видалити пункт',
+      markDoneLabel: 'Відмітити виконаним',
+      markUndoneLabel: 'Повернути в активні',
+    },
   },
 
   ru: {
@@ -1218,6 +1310,52 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       pagePrefix: 'Ссылка',
       jsonEncryptedVaultNote: 'Личный сейф экспортируется в JSON исключительно в зашифрованном виде (AES-GCM).',
     },
+    doctorPrint: {
+      includeSpine2D: 'Включить 2D-схему позвоночника',
+      spineDiagramTitle: '2D-схема позвоночника (SOR 2026)',
+      followUpInlineLabel: 'План контроля',
+    },
+    mobileNav: {
+      profile: 'Профиль',
+      mri: 'МРТ',
+      atlas: 'Атлас',
+      records: 'Записи',
+      archive: 'Архив',
+      more: 'Ещё',
+      drawerTitle: 'Дополнительные разделы',
+      quickSearch: 'Быстрый поиск',
+    },
+    globalSearch: {
+      buttonLabel: 'Поиск',
+      placeholder: 'Поиск по МРТ (L4-L5, D6), обследованиям, препаратам, ссылкам…',
+      emptyPrompt: 'Начните вводить сегмент МРТ, название препарата, обследование или ссылку.',
+      noResults: 'По вашему запросу ничего не найдено.',
+      quickExamplesLabel: 'Быстрые запросы:',
+      navigateHint: 'навигация',
+      enterHint: 'перейти',
+      escHint: 'закрыть',
+      resultsCount: 'Найдено:',
+      groups: {
+        mri: 'Сегменты МРТ (SOR)',
+        records: 'Обследования и выписки',
+        treatments: 'Лечение и препараты',
+        archive: 'Архив ссылок',
+        followUp: 'План контроля',
+      },
+    },
+    followUp: {
+      sectionTitle: 'План контроля / Следующие шаги',
+      sectionSubtitle: 'Чеклист запланированных дообследований и консультаций — невыполненные пункты автоматически отображаются в «Режиме для врача».',
+      inputPlaceholder: 'Например: ЭНМГ правой руки или контроль МРТ через 6 мес.',
+      datePlaceholder: 'Срок / дата',
+      addBtn: 'Добавить',
+      emptyText: 'Список запланированных контролей пуст. Добавьте следующие шаги обследования.',
+      completedOf: 'выполнено',
+      pendingCount: 'Запланировано',
+      deleteLabel: 'Удалить пункт',
+      markDoneLabel: 'Отметить выполненным',
+      markUndoneLabel: 'Вернуть в активные',
+    },
   },
 
   en: {
@@ -1634,6 +1772,52 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deleteItemConfirmBody: 'This item will be permanently removed from your encrypted Personal Vault.',
       pagePrefix: 'Link',
       jsonEncryptedVaultNote: 'The Personal Vault is exported into JSON strictly in AES-GCM encrypted form.',
+    },
+    doctorPrint: {
+      includeSpine2D: 'Include 2D spine diagram',
+      spineDiagramTitle: '2D Spine Map (SOR 2026)',
+      followUpInlineLabel: 'Follow-up Plan',
+    },
+    mobileNav: {
+      profile: 'Profile',
+      mri: 'MRI',
+      atlas: 'Atlas',
+      records: 'Records',
+      archive: 'Archive',
+      more: 'More',
+      drawerTitle: 'More Sections',
+      quickSearch: 'Quick Search',
+    },
+    globalSearch: {
+      buttonLabel: 'Search',
+      placeholder: 'Search MRI segments (L4-L5, D6), exams, medications, archive links…',
+      emptyPrompt: 'Type an MRI segment, medication name, examination, or archive link.',
+      noResults: 'No matching entries found.',
+      quickExamplesLabel: 'Quick searches:',
+      navigateHint: 'navigate',
+      enterHint: 'open',
+      escHint: 'close',
+      resultsCount: 'Matches:',
+      groups: {
+        mri: 'Spine MRI Segments (SOR)',
+        records: 'Examinations & Discharges',
+        treatments: 'Treatments & Medications',
+        archive: 'Links Archive',
+        followUp: 'Follow-up Plan',
+      },
+    },
+    followUp: {
+      sectionTitle: 'Follow-up Plan / Next Steps',
+      sectionSubtitle: 'Interactive checklist of planned checkups and specialist visits — pending items appear concisely in Doctor View.',
+      inputPlaceholder: 'e.g., Right arm ENMG or follow-up spine MRI in 6 months',
+      datePlaceholder: 'Target date',
+      addBtn: 'Add',
+      emptyText: 'No follow-up steps scheduled yet. Add planned consultations or repeat studies.',
+      completedOf: 'done',
+      pendingCount: 'Pending',
+      deleteLabel: 'Remove item',
+      markDoneLabel: 'Mark as completed',
+      markUndoneLabel: 'Mark as pending',
     },
   },
 };

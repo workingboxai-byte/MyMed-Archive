@@ -4,6 +4,7 @@ import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import { COMPLAINT_TO_MRI_SEGMENTS } from '../data/spineSegmentsData';
 import { ComplaintZone, ComplaintZoneKey, PatientProfile } from '../types/medical';
 import { PersonalVaultCard, ProfilePinSecurityPanel } from './PersonalVaultCard';
+import { FollowUpChecklistCard } from './FollowUpChecklistCard';
 
 const ZONE_ORDER: ComplaintZoneKey[] = [
   'lumbar_sacral',
@@ -576,6 +577,9 @@ export const AnamnesisView: React.FC = () => {
           })}
         </div>
       </section>
+
+      {/* Compact Follow-up Plan / Next Steps Checklist */}
+      <FollowUpChecklistCard />
 
       {/* Clinical disclaimer */}
       <div className="rounded-xl border border-slate-200/90 bg-white px-4 py-3 text-xs leading-relaxed text-slate-600 shadow-xs dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">

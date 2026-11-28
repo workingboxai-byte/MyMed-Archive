@@ -130,9 +130,24 @@
     color: #0F172A !important;
   }
 
-  .print-avoid-break {
-    break-inside: avoid;
-    page-break-inside: avoid;
+  .print-avoid-break,
+  .print-card,
+  .print-treatment-item {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-sheet h1,
+  .print-sheet h2,
+  .print-sheet h3 {
+    break-after: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .print-sheet svg {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    max-width: 100%;
   }
 
   table {
@@ -140,9 +155,13 @@
     width: 100% !important;
   }
 
+  tbody {
+    break-inside: auto;
+  }
+
   tr {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   thead {
@@ -154,4 +173,8 @@
     text-decoration: underline !important;
     text-underline-offset: 2px;
   }
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
