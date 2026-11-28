@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Printer, ArrowLeft, Copy, Check, Share2 } from 'lucide-react';
+import { Printer, ArrowLeft, Copy, Check, Share2, QrCode } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import {
   DETAILED_SPINE_SEGMENTS,
@@ -18,7 +18,11 @@ const ZONE_KEYS: ComplaintZoneKey[] = [
   'right_side_spasms_load',
 ];
 
-export const DoctorView: React.FC = () => {
+interface DoctorViewProps {
+  onOpenQr?: () => void;
+}
+
+export const DoctorView: React.FC<DoctorViewProps> = ({ onOpenQr }) => {
   const {
     language,
     setLanguage,
@@ -320,6 +324,17 @@ export const DoctorView: React.FC = () => {
               <Share2 className="h-3.5 w-3.5" />
               <span>{t.doctorPrint.shareSummaryBtn}</span>
             </button>
+
+            {onOpenQr && (
+              <button
+                type="button"
+                onClick={onOpenQr}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
+              >
+                <QrCode className="h-3.5 w-3.5" />
+                <span>{t.qr.buttonLabel}</span>
+              </button>
+            )}
 
             <button
               type="button"

@@ -441,6 +441,36 @@ export interface UiDictionary {
     undoBtn: string;
     restoredToast: string;
   };
+  pwa: {
+    installAppBtn: string;
+    installSubline: string;
+    offlineBadge: string;
+    installedToast: string;
+    iosShortHint: string;
+    iosModalTitle: string;
+    iosModalSubtitle: string;
+    iosStep1: string;
+    iosStep2: string;
+  };
+  qr: {
+    buttonLabel: string;
+    modalTitle: string;
+    modalSubtitle: string;
+    tabSummary: string;
+    tabLink: string;
+    cardHeader: string;
+    activeMedsLabel: string;
+    selectLinkLabel: string;
+    siteLinkOption: string;
+    scanSummaryHint: string;
+    scanLinkHint: string;
+    encodedContentLabel: string;
+    vaultExcludedNotice: string;
+    copyPayloadBtn: string;
+    downloadPngBtn: string;
+    downloadedToast: string;
+    generationError: string;
+  };
 }
 
 export const UI_DICT: Record<Language, UiDictionary> = {
@@ -917,6 +947,36 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       undoBtn: 'Скасувати',
       restoredToast: 'Запис відновлено',
     },
+    pwa: {
+      installAppBtn: 'Встановити додаток',
+      installSubline: 'Офлайн-доступ із головного екрана',
+      offlineBadge: 'Офлайн-режим',
+      installedToast: 'MyMed Archive встановлено як додаток',
+      iosShortHint: 'Поділитися → На екран «Додому»',
+      iosModalTitle: 'Встановити на iPhone / iPad',
+      iosModalSubtitle: 'Додайте MyMed Archive на головний екран Safari',
+      iosStep1: '1. Натисніть кнопку «Поділитися» у нижній панелі Safari.',
+      iosStep2: '2. Прокрутіть вниз і оберіть «На екран "Додому"».',
+    },
+    qr: {
+      buttonLabel: 'QR-код',
+      modalTitle: 'Показати QR-код',
+      modalSubtitle: '100% офлайн-генерація локально у браузері',
+      tabSummary: 'Зведення для лікаря',
+      tabLink: 'Посилання на документ',
+      cardHeader: 'Медична візитка',
+      activeMedsLabel: 'Актуальні препарати',
+      selectLinkLabel: 'Оберіть документ або посилання',
+      siteLinkOption: 'Посилання на сайт MyMed Archive',
+      scanSummaryHint: 'Покажіть QR-код лікарю для швидкого зчитування основних даних',
+      scanLinkHint: 'Наведіть камеру лікаря на QR-код для миттєвого відкриття посилання',
+      encodedContentLabel: 'Закодований текст',
+      vaultExcludedNotice: 'Дані «Особистого сейфа» ніколи не включаються в QR-код',
+      copyPayloadBtn: 'Скопіювати',
+      downloadPngBtn: 'Завантажити QR (PNG)',
+      downloadedToast: 'QR-код збережено у PNG',
+      generationError: 'Не вдалося згенерувати QR-код',
+    },
   },
 
   ru: {
@@ -1392,6 +1452,36 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       undoBtn: 'Отменить',
       restoredToast: 'Запись восстановлена',
     },
+    pwa: {
+      installAppBtn: 'Установить приложение',
+      installSubline: 'Офлайн-доступ с главного экрана',
+      offlineBadge: 'Офлайн-режим',
+      installedToast: 'MyMed Archive установлен как приложение',
+      iosShortHint: 'Поделиться → На экран «Домой»',
+      iosModalTitle: 'Установить на iPhone / iPad',
+      iosModalSubtitle: 'Добавьте MyMed Archive на главный экран Safari',
+      iosStep1: '1. Нажмите кнопку «Поделиться» на нижней панели Safari.',
+      iosStep2: '2. Прокрутите вниз и выберите «На экран "Домой"».',
+    },
+    qr: {
+      buttonLabel: 'QR-код',
+      modalTitle: 'Показать QR-код',
+      modalSubtitle: '100% офлайн-генерация локально в браузере',
+      tabSummary: 'Сводка для врача',
+      tabLink: 'Ссылка на документ',
+      cardHeader: 'Медицинская визитка',
+      activeMedsLabel: 'Актуальные препараты',
+      selectLinkLabel: 'Выберите документ или ссылку',
+      siteLinkOption: 'Ссылка на сайт MyMed Archive',
+      scanSummaryHint: 'Покажите QR-код врачу для быстрого считывания основных данных',
+      scanLinkHint: 'Наведите камеру врача на QR-код для мгновенного открытия ссылки',
+      encodedContentLabel: 'Закодированный текст',
+      vaultExcludedNotice: 'Данные «Личного сейфа» никогда не включаются в QR-код',
+      copyPayloadBtn: 'Скопировать',
+      downloadPngBtn: 'Скачать QR (PNG)',
+      downloadedToast: 'QR-код сохранён в PNG',
+      generationError: 'Не удалось сгенерировать QR-код',
+    },
   },
 
   en: {
@@ -1866,6 +1956,36 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deletedToast: 'Entry deleted',
       undoBtn: 'Undo',
       restoredToast: 'Entry restored',
+    },
+    pwa: {
+      installAppBtn: 'Install App',
+      installSubline: 'Offline access from your home screen',
+      offlineBadge: 'Offline mode',
+      installedToast: 'MyMed Archive installed as an app',
+      iosShortHint: 'Share → Add to Home Screen',
+      iosModalTitle: 'Install on iPhone / iPad',
+      iosModalSubtitle: 'Add MyMed Archive to your Safari Home Screen',
+      iosStep1: '1. Tap the Share button in the Safari toolbar.',
+      iosStep2: '2. Scroll down and tap "Add to Home Screen".',
+    },
+    qr: {
+      buttonLabel: 'QR Code',
+      modalTitle: 'Show QR Code',
+      modalSubtitle: '100% offline local generation in your browser',
+      tabSummary: 'Doctor Summary',
+      tabLink: 'Document Link',
+      cardHeader: 'Medical Summary Card',
+      activeMedsLabel: 'Active medications',
+      selectLinkLabel: 'Select document or link',
+      siteLinkOption: 'Link to MyMed Archive app',
+      scanSummaryHint: 'Show this QR code to your doctor to share essential medical info',
+      scanLinkHint: 'Scan with a camera to open the selected archive link immediately',
+      encodedContentLabel: 'Encoded content',
+      vaultExcludedNotice: 'Personal Vault data is never included in the QR code',
+      copyPayloadBtn: 'Copy',
+      downloadPngBtn: 'Download QR (PNG)',
+      downloadedToast: 'QR code saved as PNG',
+      generationError: 'Failed to generate QR code',
     },
   },
 };

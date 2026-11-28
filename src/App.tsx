@@ -21,6 +21,8 @@ import {
   Search,
   MoreHorizontal,
   RotateCcw,
+  QrCode,
+  WifiOff,
 } from 'lucide-react';
 import { MedicalArchiveProvider, useMedicalArchive } from './context/MedicalArchiveContext';
 import { AnamnesisView } from './components/AnamnesisView';
@@ -32,6 +34,9 @@ import { DoctorView } from './components/DoctorView';
 import { JsonArchiveModal } from './components/JsonArchiveModal';
 import { PinUnlockModal } from './components/PinUnlockModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
+import { QrCodeModal } from './components/QrCodeModal';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { Language, NavSection } from './types/medical';
 
 const Atlas3DView = lazy(() => import('./components/Atlas3DView'));
@@ -70,6 +75,8 @@ const AppShell: React.FC = () => {
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
   const [jsonModalOpen, setJsonModalOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
+  const isOnline = useOnlineStatus();
 
   // Global Ctrl+K / Cmd+K Quick Search shortcut
   useEffect(() => {
@@ -118,7 +125,7 @@ const AppShell: React.FC = () => {
       case 'archive':
         return <LinksArchiveView />;
       case 'doctor':
-        return <DoctorView />;
+        return <DoctorView onOpenQr={() => setQrOpen(true)} />;
     }
   };
 
@@ -205,8 +212,9 @@ const AppShell: React.FC = () => {
               </nav>
             </div>
 
-            {/* Sidebar bottom JSON Export / Import utility */}
+            {/* Sidebar bottom PWA Install & JSON Export / Import utility */}
             <div className="border-t border-slate-800 p-3">
+              <PWAInstallButton variant="sidebar" />
               <button
                 type="button"
                 onClick={() => setJsonModalOpen(true)}
@@ -282,6 +290,10 @@ const AppShell: React.FC = () => {
               </div>
 
               <div className="border-t border-slate-800 p-3">
+                <PWAInstallButton
+                  variant="sidebar"
+                  onActionComplete={() => setMobileNavOpen(false)}
+                />
                 <button
                   type="button"
                   onClick={() => {
@@ -315,9 +327,22 @@ const AppShell: React.FC = () => {
               <div className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {t.nav[activeSection]}
               </div>
+              {!isOnline && (
+                <span
+                  role="status"
+                  title={t.pwa.offlineBadge}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:border-amber-700/80 dark:bg-amber-950/60 dark:text-amber-300 whitespace-nowrap"
+                >
+                  <WifiOff className="h-3 w-3 shrink-0" />
+                  <span className="hidden sm:inline">{t.pwa.offlineBadge}</span>
+                </span>
+              )}
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
+              {/* Compact PWA Install Button (shown when native install prompt is ready) */}
+              <PWAInstallButton variant="header" />
+
               {/* Global Quick Search Button (Ctrl+K) */}
               <button
                 type="button"
@@ -331,6 +356,18 @@ const AppShell: React.FC = () => {
                 <kbd className="hidden rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-400 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400 sm:inline-block">
                   Ctrl+K
                 </kbd>
+              </button>
+
+              {/* Offline QR Code Quick Button */}
+              <button
+                type="button"
+                onClick={() => setQrOpen(true)}
+                title={t.qr.modalTitle}
+                aria-label={t.qr.modalTitle}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white sm:px-2.5 whitespace-nowrap"
+              >
+                <QrCode className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-cyan-400" />
+                <span className="hidden xl:inline">{t.qr.buttonLabel}</span>
               </button>
 
               {/* Privacy Mode Quick Toggle */}
@@ -556,17 +593,33 @@ const AppShell: React.FC = () => {
                 </span>
               </button>
 
-              <div className="grid grid-cols-2 gap-2 pt-1">
+              <PWAInstallButton
+                variant="mobile-sheet"
+                onActionComplete={() => setMobileMoreOpen(false)}
+              />
+
+              <div className="grid grid-cols-3 gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => {
                     setMobileMoreOpen(false);
                     setSearchOpen(true);
                   }}
-                  className="flex min-h-[46px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  className="flex min-h-[46px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 >
                   <Search className="h-4 w-4 text-sky-600 dark:text-cyan-400" />
-                  <span>{t.mobileNav.quickSearch}</span>
+                  <span className="truncate">{t.mobileNav.quickSearch}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMoreOpen(false);
+                    setQrOpen(true);
+                  }}
+                  className="flex min-h-[46px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                >
+                  <QrCode className="h-4 w-4 text-sky-600 dark:text-cyan-400" />
+                  <span className="truncate">{t.qr.buttonLabel}</span>
                 </button>
                 <button
                   type="button"
@@ -574,10 +627,10 @@ const AppShell: React.FC = () => {
                     setMobileMoreOpen(false);
                     setJsonModalOpen(true);
                   }}
-                  className="flex min-h-[46px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                  className="flex min-h-[46px] items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                 >
                   <Database className="h-4 w-4 text-sky-600 dark:text-cyan-400" />
-                  <span>{t.actions.jsonArchive}</span>
+                  <span className="truncate">{t.actions.jsonArchive}</span>
                 </button>
               </div>
             </div>
@@ -587,6 +640,9 @@ const AppShell: React.FC = () => {
 
       {/* Global Quick Search Modal (Ctrl+K) */}
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Offline QR Code Modal */}
+      <QrCodeModal open={qrOpen} onClose={() => setQrOpen(false)} />
 
       {/* JSON Import/Export/Reset Modal */}
       <JsonArchiveModal open={jsonModalOpen} onClose={() => setJsonModalOpen(false)} />
