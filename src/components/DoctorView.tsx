@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Printer, ArrowLeft } from 'lucide-react';
+import { Printer, ArrowLeft, Copy, Check, Share2 } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import {
   DETAILED_SPINE_SEGMENTS,
@@ -33,9 +33,11 @@ export const DoctorView: React.FC = () => {
     treatments,
     followUpPlan,
     setActiveSection,
+    showToast,
   } = useMedicalArchive();
 
   const [includeSpine2D, setIncludeSpine2D] = useState(true);
+  const [summaryCopied, setSummaryCopied] = useState(false);
 
   const pendingFollowUp = React.useMemo(
     () => followUpPlan.filter((task) => !task.completed),
@@ -93,6 +95,151 @@ export const DoctorView: React.FC = () => {
   const todayStr = new Date().toISOString().slice(0, 10);
   const blurClass = privacyMode ? 'blur-[5px] select-none transition-all' : 'transition-all';
 
+  const buildPlainTextSummary = (): string => {
+    const lines: string[] = [];
+    const safePatientName = privacyMode ? t.patientShort : fullName;
+
+    lines.push(`${t.appBrand} — ${t.doctor.docHeaderTitle} (${todayStr})`);
+    lines.push('────────────────────────────────────────');
+
+    // 1. Profile & Chronic conditions
+    lines.push(`${t.doctor.patientBlock}:`);
+    lines.push(`• ${t.anamnesis.fullName}: ${safePatientName}`);
+    lines.push(`• ${t.anamnesis.birthYear}: ${profile.birth_year} (${age} ${t.anamnesis.ageSuffix})`);
+    if (!privacyMode && regionName) {
+      lines.push(`• ${t.anamnesis.region}: ${regionName}`);
+    }
+    if (profile.height_cm || profile.weight_kg) {
+      const h = profile.height_cm ? `${profile.height_cm} ${t.anamnesis.cmUnit}` : '—';
+      const w = profile.weight_kg ? `${profile.weight_kg} ${t.anamnesis.kgUnit}` : '—';
+      lines.push(`• ${t.anamnesis.height} / ${t.anamnesis.weight}: ${h} / ${w}${bmi ? ` (BMI ${bmi})` : ''}`);
+    }
+    if (profile.blood_type) {
+      lines.push(`• ${t.anamnesis.bloodType}: ${profile.blood_type}`);
+    }
+    if (profile.allergies) {
+      lines.push(`• ${t.anamnesis.allergies}: ${profile.allergies}`);
+    }
+    if (profile.chronic_conditions) {
+      lines.push(`• ${t.anamnesis.chronicConditions}: ${profile.chronic_conditions}`);
+    }
+    if (profile.current_medications) {
+      lines.push(`• ${t.anamnesis.currentMedications}: ${profile.current_medications}`);
+    }
+
+    // 2. Key MRI Spine Changes (SOR 2025 -> 2026)
+    lines.push('');
+    lines.push(`${t.doctor.redFlagsBlock}:`);
+    for (const item of MRI_KPI_SUMMARIES) {
+      lines.push(`• ${item.kicker[language]} — ${item.headline[language]} (${item.subline[language]})`);
+    }
+
+    const keySegments = DETAILED_SPINE_SEGMENTS.filter((seg) => seg.status !== 'stable');
+    if (keySegments.length > 0) {
+      lines.push('');
+      lines.push(`${t.doctor.mriTableBlockPrefix}):`);
+      for (const seg of keySegments) {
+        lines.push(
+          `• ${seg.id} [${seg.statusLabel[language]}]: ${seg.y2026.finding[language]} (${seg.y2026.canal[language]}; ${seg.y2026.roots[language]})`,
+        );
+      }
+    }
+
+    // 3. Active & Recent Treatment Courses
+    if (doctorTreatments.length > 0) {
+      lines.push('');
+      lines.push(`${t.doctor.treatmentsBlock}:`);
+      for (const course of doctorTreatments) {
+        const header = [
+          `[${t.treatments.statuses[course.status]}]`,
+          course.prescribedBy || t.treatments.courseTypes[course.courseType],
+          course.period && course.period !== '—' ? `(${course.period})` : '',
+        ]
+          .filter(Boolean)
+          .join(' ');
+        const medsText = course.medications
+          .map((m) => {
+            const parts = [m.dosage, m.schedule, m.duration].filter(Boolean);
+            return parts.length > 0 ? `${m.name} (${parts.join(', ')})` : m.name;
+          })
+          .join('; ');
+        lines.push(`• ${header}${medsText ? `: ${medsText}` : ''}`);
+        if (course.proceduresAndRecommendations) {
+          lines.push(`  ${t.treatments.proceduresLabel}: ${course.proceduresAndRecommendations}`);
+        }
+      }
+    }
+
+    // 4. Pending Follow-up Plan
+    if (pendingFollowUp.length > 0) {
+      lines.push('');
+      lines.push(`${t.doctorPrint.followUpInlineLabel}:`);
+      for (const task of pendingFollowUp) {
+        lines.push(`• ${task.title}${task.targetDate ? ` (${task.targetDate})` : ''}`);
+      }
+    }
+
+    return lines.join('\n');
+  };
+
+  const writeTextToClipboard = async (text: string): Promise<boolean> => {
+    try {
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+      // Fallback below
+    }
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleCopySummary = async () => {
+    const text = buildPlainTextSummary();
+    const ok = await writeTextToClipboard(text);
+    if (ok) {
+      setSummaryCopied(true);
+      showToast(t.doctorPrint.summaryCopiedToast, 'success');
+      window.setTimeout(() => {
+        setSummaryCopied(false);
+      }, 2000);
+    }
+  };
+
+  const handleShareSummary = async () => {
+    const text = buildPlainTextSummary();
+    const shareTitle = `${t.appBrand} — ${t.doctor.docHeaderTitle}`;
+
+    if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: shareTitle, text });
+        showToast(t.doctorPrint.summarySharedToast, 'success');
+        return;
+      } catch (err) {
+        // User intentionally dismissed the OS share sheet -> do not fallback or complain
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          return;
+        }
+      }
+    }
+
+    // Desktop / unsupported Web Share API fallback -> copy structured text to clipboard
+    await handleCopySummary();
+  };
+
   return (
     <div className="space-y-5">
       {/* Screen-only Doctor View Action Toolbar */}
@@ -145,14 +292,44 @@ export const DoctorView: React.FC = () => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700 whitespace-nowrap"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            {t.actions.printPdf}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopySummary}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors whitespace-nowrap ${
+                summaryCopied
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+              }`}
+            >
+              {summaryCopied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+              <span>
+                {summaryCopied ? t.doctorPrint.copiedSummaryBtn : t.doctorPrint.copySummaryBtn}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleShareSummary}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 whitespace-nowrap"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span>{t.doctorPrint.shareSummaryBtn}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-sky-700 whitespace-nowrap"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              {t.actions.printPdf}
+            </button>
+          </div>
         </div>
       </div>
 

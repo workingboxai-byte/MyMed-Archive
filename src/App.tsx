@@ -20,6 +20,7 @@ import {
   Moon,
   Search,
   MoreHorizontal,
+  RotateCcw,
 } from 'lucide-react';
 import { MedicalArchiveProvider, useMedicalArchive } from './context/MedicalArchiveContext';
 import { AnamnesisView } from './components/AnamnesisView';
@@ -62,6 +63,7 @@ const AppShell: React.FC = () => {
     treatments,
     attachments,
     toast,
+    dismissToast,
   } = useMedicalArchive();
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -592,20 +594,34 @@ const AppShell: React.FC = () => {
       {/* PIN Unlock Modal for Privacy Mode & Personal Vault */}
       <PinUnlockModal />
 
-      {/* Transient Toast Notification */}
+      {/* Transient Toast Notification (supports 5s Undo action on delete) */}
       {toast && (
         <div
           role="status"
-          className="no-print fixed right-4 bottom-20 z-50 flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-white shadow-lg md:bottom-4"
+          className="no-print fixed right-4 bottom-20 z-50 flex items-center gap-2.5 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2.5 text-xs font-medium text-white shadow-xl md:bottom-4"
         >
           {toast.tone === 'success' ? (
-            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
           ) : toast.tone === 'error' ? (
-            <AlertCircle className="h-4 w-4 text-rose-400" />
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
           ) : (
-            <Info className="h-4 w-4 text-cyan-400" />
+            <Info className="h-4 w-4 shrink-0 text-cyan-400" />
           )}
           <span>{toast.text}</span>
+          {toast.actionLabel && toast.onAction && (
+            <button
+              type="button"
+              onClick={() => {
+                const fn = toast.onAction;
+                dismissToast();
+                fn?.();
+              }}
+              className="ml-1 inline-flex items-center gap-1 rounded-md bg-cyan-500/20 px-2.5 py-1 text-[11px] font-semibold text-cyan-300 transition-colors hover:bg-cyan-500/30 hover:text-white whitespace-nowrap"
+            >
+              <RotateCcw className="h-3 w-3" />
+              {toast.actionLabel}
+            </button>
+          )}
         </div>
       )}
     </div>

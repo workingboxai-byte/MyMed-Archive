@@ -387,6 +387,11 @@ export interface UiDictionary {
     includeSpine2D: string;
     spineDiagramTitle: string;
     followUpInlineLabel: string;
+    copySummaryBtn: string;
+    copiedSummaryBtn: string;
+    shareSummaryBtn: string;
+    summaryCopiedToast: string;
+    summarySharedToast: string;
   };
   mobileNav: {
     profile: string;
@@ -428,6 +433,13 @@ export interface UiDictionary {
     deleteLabel: string;
     markDoneLabel: string;
     markUndoneLabel: string;
+    addToCalendarBtn: string;
+    calendarDownloadedToast: string;
+  };
+  undo: {
+    deletedToast: string;
+    undoBtn: string;
+    restoredToast: string;
   };
 }
 
@@ -851,6 +863,11 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       includeSpine2D: 'Включити 2D-схему хребта',
       spineDiagramTitle: '2D-схема хребта (SOR 2026)',
       followUpInlineLabel: 'План контролю',
+      copySummaryBtn: 'Скопіювати текст',
+      copiedSummaryBtn: 'Скопійовано',
+      shareSummaryBtn: 'Поділитися',
+      summaryCopiedToast: 'Зведення скопійовано в буфер обміну',
+      summarySharedToast: 'Зведення передано',
     },
     mobileNav: {
       profile: 'Профіль',
@@ -892,6 +909,13 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deleteLabel: 'Видалити пункт',
       markDoneLabel: 'Відмітити виконаним',
       markUndoneLabel: 'Повернути в активні',
+      addToCalendarBtn: 'Додати в календар (.ics)',
+      calendarDownloadedToast: 'Подію календаря (.ics) завантажено',
+    },
+    undo: {
+      deletedToast: 'Запис видалено',
+      undoBtn: 'Скасувати',
+      restoredToast: 'Запис відновлено',
     },
   },
 
@@ -1314,6 +1338,11 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       includeSpine2D: 'Включить 2D-схему позвоночника',
       spineDiagramTitle: '2D-схема позвоночника (SOR 2026)',
       followUpInlineLabel: 'План контроля',
+      copySummaryBtn: 'Скопировать текст',
+      copiedSummaryBtn: 'Скопировано',
+      shareSummaryBtn: 'Поделиться',
+      summaryCopiedToast: 'Сводка скопирована в буфер обмена',
+      summarySharedToast: 'Сводка отправлена',
     },
     mobileNav: {
       profile: 'Профиль',
@@ -1355,6 +1384,13 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deleteLabel: 'Удалить пункт',
       markDoneLabel: 'Отметить выполненным',
       markUndoneLabel: 'Вернуть в активные',
+      addToCalendarBtn: 'Добавить в календарь (.ics)',
+      calendarDownloadedToast: 'Событие календаря (.ics) загружено',
+    },
+    undo: {
+      deletedToast: 'Запись удалена',
+      undoBtn: 'Отменить',
+      restoredToast: 'Запись восстановлена',
     },
   },
 
@@ -1777,6 +1813,11 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       includeSpine2D: 'Include 2D spine diagram',
       spineDiagramTitle: '2D Spine Map (SOR 2026)',
       followUpInlineLabel: 'Follow-up Plan',
+      copySummaryBtn: 'Copy Text',
+      copiedSummaryBtn: 'Copied',
+      shareSummaryBtn: 'Share',
+      summaryCopiedToast: 'Clinical summary copied to clipboard',
+      summarySharedToast: 'Clinical summary shared',
     },
     mobileNav: {
       profile: 'Profile',
@@ -1818,6 +1859,13 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       deleteLabel: 'Remove item',
       markDoneLabel: 'Mark as completed',
       markUndoneLabel: 'Mark as pending',
+      addToCalendarBtn: 'Add to calendar (.ics)',
+      calendarDownloadedToast: 'Calendar event (.ics) downloaded',
+    },
+    undo: {
+      deletedToast: 'Entry deleted',
+      undoBtn: 'Undo',
+      restoredToast: 'Entry restored',
     },
   },
 };

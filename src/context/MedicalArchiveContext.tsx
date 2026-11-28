@@ -63,6 +63,14 @@ export interface ToastMessage {
   id: number;
   text: string;
   tone: 'info' | 'success' | 'error';
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+export interface ShowToastOptions {
+  durationMs?: number;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 interface MedicalArchiveContextValue {
@@ -109,7 +117,8 @@ interface MedicalArchiveContextValue {
   importJsonString: (jsonText: string) => { ok: boolean; error?: string };
   resetToInitialJson: () => void;
   toast: ToastMessage | null;
-  showToast: (text: string, tone?: ToastMessage['tone']) => void;
+  showToast: (text: string, tone?: ToastMessage['tone'], options?: ShowToastOptions) => void;
+  dismissToast: () => void;
   // Privacy PIN (SHA-256) & Encrypted Personal Vault (AES-GCM)
   hasPin: boolean;
   hasEncryptedVault: boolean;
@@ -400,13 +409,40 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     }
   }, [securityState]);
 
-  const showToast = useCallback((text: string, tone: ToastMessage['tone'] = 'info') => {
-    const id = Date.now();
-    setToast({ id, text, tone });
-    window.setTimeout(() => {
-      setToast((prev) => (prev && prev.id === id ? null : prev));
-    }, 3200);
+  const toastTimerRef = useRef<number | null>(null);
+  const stateRef = useRef<StoredState>(state);
+  stateRef.current = state;
+
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setToast(null);
   }, []);
+
+  const showToast = useCallback(
+    (text: string, tone: ToastMessage['tone'] = 'info', options?: ShowToastOptions) => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
+      const id = Date.now() + Math.random();
+      const duration = options?.durationMs ?? 3200;
+      setToast({
+        id,
+        text,
+        tone,
+        actionLabel: options?.actionLabel,
+        onAction: options?.onAction,
+      });
+      toastTimerRef.current = window.setTimeout(() => {
+        setToast((prev) => (prev && prev.id === id ? null : prev));
+        toastTimerRef.current = null;
+      }, duration);
+    },
+    [],
+  );
 
   // Persist medical archive state strictly in browser localStorage
   useEffect(() => {
@@ -755,11 +791,27 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
 
   const deleteRecord = useCallback(
     (id: string) => {
+      const idx = stateRef.current.records.findIndex((r) => r.id === id);
+      const removed = idx >= 0 ? stateRef.current.records[idx] : null;
       setState((prev) => ({
         ...prev,
         records: prev.records.filter((r) => r.id !== id),
       }));
-      showToast(UI_DICT[language].jsonModal.deletedToast, 'info');
+      if (removed) {
+        showToast(UI_DICT[language].undo.deletedToast, 'info', {
+          durationMs: 5000,
+          actionLabel: UI_DICT[language].undo.undoBtn,
+          onAction: () => {
+            setState((prev) => {
+              if (prev.records.some((r) => r.id === removed.id)) return prev;
+              const next = [...prev.records];
+              next.splice(Math.min(idx, next.length), 0, removed);
+              return { ...prev, records: next };
+            });
+            showToast(UI_DICT[language].undo.restoredToast, 'success');
+          },
+        });
+      }
     },
     [language, showToast],
   );
@@ -790,11 +842,27 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
 
   const deleteTreatment = useCallback(
     (id: string) => {
+      const idx = stateRef.current.treatments.findIndex((tr) => tr.id === id);
+      const removed = idx >= 0 ? stateRef.current.treatments[idx] : null;
       setState((prev) => ({
         ...prev,
         treatments: prev.treatments.filter((tr) => tr.id !== id),
       }));
-      showToast(UI_DICT[language].jsonModal.deletedToast, 'info');
+      if (removed) {
+        showToast(UI_DICT[language].undo.deletedToast, 'info', {
+          durationMs: 5000,
+          actionLabel: UI_DICT[language].undo.undoBtn,
+          onAction: () => {
+            setState((prev) => {
+              if (prev.treatments.some((tr) => tr.id === removed.id)) return prev;
+              const next = [...prev.treatments];
+              next.splice(Math.min(idx, next.length), 0, removed);
+              return { ...prev, treatments: next };
+            });
+            showToast(UI_DICT[language].undo.restoredToast, 'success');
+          },
+        });
+      }
     },
     [language, showToast],
   );
@@ -839,11 +907,27 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
 
   const deleteAttachment = useCallback(
     (id: string) => {
+      const idx = stateRef.current.attachments.findIndex((a) => a.id === id);
+      const removed = idx >= 0 ? stateRef.current.attachments[idx] : null;
       setState((prev) => ({
         ...prev,
         attachments: prev.attachments.filter((a) => a.id !== id),
       }));
-      showToast(UI_DICT[language].jsonModal.deletedToast, 'info');
+      if (removed) {
+        showToast(UI_DICT[language].undo.deletedToast, 'info', {
+          durationMs: 5000,
+          actionLabel: UI_DICT[language].undo.undoBtn,
+          onAction: () => {
+            setState((prev) => {
+              if (prev.attachments.some((a) => a.id === removed.id)) return prev;
+              const next = [...prev.attachments];
+              next.splice(Math.min(idx, next.length), 0, removed);
+              return { ...prev, attachments: next };
+            });
+            showToast(UI_DICT[language].undo.restoredToast, 'success');
+          },
+        });
+      }
     },
     [language, showToast],
   );
@@ -879,11 +963,27 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
 
   const deleteFollowUpTask = useCallback(
     (id: string) => {
+      const idx = stateRef.current.followUpPlan.findIndex((task) => task.id === id);
+      const removed = idx >= 0 ? stateRef.current.followUpPlan[idx] : null;
       setState((prev) => ({
         ...prev,
         followUpPlan: prev.followUpPlan.filter((task) => task.id !== id),
       }));
-      showToast(UI_DICT[language].jsonModal.deletedToast, 'info');
+      if (removed) {
+        showToast(UI_DICT[language].undo.deletedToast, 'info', {
+          durationMs: 5000,
+          actionLabel: UI_DICT[language].undo.undoBtn,
+          onAction: () => {
+            setState((prev) => {
+              if (prev.followUpPlan.some((task) => task.id === removed.id)) return prev;
+              const next = [...prev.followUpPlan];
+              next.splice(Math.min(idx, next.length), 0, removed);
+              return { ...prev, followUpPlan: next };
+            });
+            showToast(UI_DICT[language].undo.restoredToast, 'success');
+          },
+        });
+      }
     },
     [language, showToast],
   );
@@ -1034,6 +1134,7 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     resetToInitialJson,
     toast,
     showToast,
+    dismissToast,
     hasPin,
     hasEncryptedVault,
     encryptedVaultCount,

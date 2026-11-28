@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Check, Plus, Trash2, Calendar } from 'lucide-react';
+import { Check, Plus, Trash2, Calendar, CalendarPlus } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
+import { downloadFollowUpIcs } from '../utils/icsCalendar';
 
 export const FollowUpChecklistCard: React.FC = () => {
-  const { t, followUpPlan, addFollowUpTask, toggleFollowUpTask, deleteFollowUpTask } =
+  const { t, followUpPlan, addFollowUpTask, toggleFollowUpTask, deleteFollowUpTask, showToast } =
     useMedicalArchive();
 
   const [newTitle, setNewTitle] = useState('');
@@ -115,10 +116,10 @@ export const FollowUpChecklistCard: React.FC = () => {
                 </span>
               </button>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex shrink-0 items-center gap-1.5">
                 {task.targetDate && (
                   <span
-                    className={`font-mono text-xs tabular-nums ${
+                    className={`mr-1 font-mono text-xs tabular-nums ${
                       task.completed
                         ? 'text-slate-400 dark:text-slate-600'
                         : 'text-slate-500 dark:text-slate-400'
@@ -127,6 +128,19 @@ export const FollowUpChecklistCard: React.FC = () => {
                     {task.targetDate}
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadFollowUpIcs(task, t.followUp.sectionTitle);
+                    showToast(t.followUp.calendarDownloadedToast, 'success');
+                  }}
+                  aria-label={t.followUp.addToCalendarBtn}
+                  title={t.followUp.addToCalendarBtn}
+                  className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:bg-sky-50 hover:text-sky-700 dark:text-slate-400 dark:hover:bg-cyan-950/60 dark:hover:text-cyan-300"
+                >
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  <span className="hidden font-mono text-[10px] sm:inline">.ics</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => deleteFollowUpTask(task.id)}
