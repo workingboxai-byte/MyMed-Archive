@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowUpRight,
   Bone,
+  Box,
   Brain,
   ChevronDown,
   ChevronUp,
   Eye,
   EyeOff,
+  GitBranch,
   PanelLeftClose,
   PanelLeftOpen,
   RotateCcw,
@@ -16,6 +18,8 @@ import { DETAILED_SPINE_SEGMENTS } from '../data/spineSegmentsData';
 import { BRAIN_MRI_LANDMARKS } from '../data/brainFindingsData';
 import { AtlasCameraPreset, SegmentStatus } from '../types/medical';
 import { SvityloAtlasViewport, SvityloLayerState } from './SvityloAtlasViewport';
+import { Spine2DAtlasView, Spine2DPanelMode } from './Spine2DAtlasView';
+import { Atlas2DRegionId } from '../data/spineNeuroanatomyData';
 
 function statusDotClass(status: SegmentStatus): string {
   if (status === 'negative') return 'bg-rose-500';
@@ -46,6 +50,7 @@ function brainSeverityPill(severity: 'critical' | 'warning' | 'info'): string {
 const Atlas3DView: React.FC = () => {
   const {
     language,
+    theme,
     t,
     selectedMriSegment,
     setSelectedMriSegment,
@@ -55,10 +60,15 @@ const Atlas3DView: React.FC = () => {
     atlasFocusNonce,
   } = useMedicalArchive();
 
-  // Narrow left segment sidebar is collapsible to give ~100% width to the 3D scene
+  // Narrow left segment sidebar is collapsible to give ~100% width to the viewport
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState<boolean>(true);
-  // Top-right clinical detail card is collapsed by default as a compact clickable pill
+  // Top-right clinical detail card in 3D mode is collapsed by default as a compact clickable pill
   const [isDetailExpanded, setIsDetailExpanded] = useState<boolean>(false);
+
+  // Spine display mode: '3d' (default Svitylo 3D engine) | '2d' (anatomical lateral 2D SVG map)
+  const [spineViewMode, setSpineViewMode] = useState<'3d' | '2d'>('3d');
+  const [panel2DMode, setPanel2DMode] = useState<Spine2DPanelMode>('segment');
+  const [selected2DRegion, setSelected2DRegion] = useState<Atlas2DRegionId>('lumbar');
 
   // When null, Svitylo displays the full spine (C1–Sacrum + discs) opaque against the semi-transparent body silhouette.
   // Clicking any segment in the list or jumping from MRI Dynamics focuses and highlights those exact vertebrae.
@@ -87,6 +97,7 @@ const Atlas3DView: React.FC = () => {
       prevExternalNonceRef.current = atlasFocusNonce;
       if (atlasFocusNonce > 0) {
         setFocusedSegmentId(selectedMriSegment);
+        setPanel2DMode('segment');
       }
     }
   }, [atlasFocusNonce, selectedMriSegment]);
@@ -111,10 +122,20 @@ const Atlas3DView: React.FC = () => {
     (segId: string) => {
       setSelectedMriSegment(segId);
       setFocusedSegmentId(segId);
+      setPanel2DMode('segment');
       setLocalFocusNonce((n) => n + 1);
     },
     [setSelectedMriSegment],
   );
+
+  const handleSelect2DRegion = useCallback((regionId: Atlas2DRegionId) => {
+    setSelected2DRegion(regionId);
+    setPanel2DMode('region');
+  }, []);
+
+  const handleShow2DOverview = useCallback(() => {
+    setPanel2DMode('overview');
+  }, []);
 
   const handleSelectBrain = useCallback((findingId: string) => {
     setSelectedBrainId(findingId);
@@ -152,125 +173,177 @@ const Atlas3DView: React.FC = () => {
     [atlas3dScene],
   );
 
+  const is2DSpineActive = atlas3dScene === 'spine' && spineViewMode === '2d';
+
   return (
     <div className="flex h-[calc(100vh-88px)] min-h-[560px] flex-col gap-2">
-      {/* Main Spacious Workspace: Narrow Collapsible Left Panel (252px) + Maximum-Area Svitylo 3D Viewport */}
-      <div className="relative flex min-h-0 flex-1 gap-3">
-        {/* NARROW COLLAPSIBLE LEFT COLUMN (252px) */}
-        {isLeftPanelOpen && (
-          <aside className="flex w-[252px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            {/* Compact Top Row: Scene Switcher + Collapse Button */}
-            <div className="flex items-center gap-1.5 border-b border-slate-200/80 p-2 dark:border-slate-800">
+      {/* Compact Top Control Bar: Sidebar Toggle + Spine/Brain Tabs + 3D/2D-Schematic Switcher + 3D Layers */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-white px-2.5 py-1.5 shadow-2xs dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsLeftPanelOpen((prev) => !prev)}
+            title={isLeftPanelOpen ? t.atlas3d.collapsePanel : t.atlas3d.expandPanel}
+            aria-label={isLeftPanelOpen ? t.atlas3d.collapsePanel : t.atlas3d.expandPanel}
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            {isLeftPanelOpen ? (
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            ) : (
+              <PanelLeftOpen className="h-3.5 w-3.5" />
+            )}
+          </button>
+
+          {/* Scene Switcher: Spine | Brain */}
+          <div
+            className="inline-flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800"
+            role="tablist"
+            aria-label={t.atlas3d.sectionTitle}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={atlas3dScene === 'spine'}
+              onClick={() => handleSwitchScene('spine')}
+              title={t.atlas3d.sceneSpine}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors whitespace-nowrap ${
+                atlas3dScene === 'spine'
+                  ? 'bg-sky-600 text-white shadow-2xs dark:bg-cyan-600'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+              }`}
+            >
+              <Bone className="h-3.5 w-3.5 shrink-0" />
+              <span>{t.atlas3d.sceneSpineShort}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={atlas3dScene === 'brain'}
+              onClick={() => handleSwitchScene('brain')}
+              title={t.atlas3d.sceneBrain}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors whitespace-nowrap ${
+                atlas3dScene === 'brain'
+                  ? 'bg-sky-600 text-white shadow-2xs dark:bg-cyan-600'
+                  : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+              }`}
+            >
+              <Brain className="h-3.5 w-3.5 shrink-0" />
+              <span>{t.atlas3d.sceneBrainShort}</span>
+            </button>
+          </div>
+
+          {/* Segmented Mode Switcher for Spine: 3D | 2D-схема */}
+          {atlas3dScene === 'spine' && (
+            <>
+              <div className="hidden h-4 w-px bg-slate-200 dark:bg-slate-700 sm:block" aria-hidden="true" />
               <div
-                className="grid flex-1 grid-cols-2 rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800"
+                className="inline-flex rounded-lg border border-slate-200/80 bg-slate-100 p-0.5 dark:border-slate-700/80 dark:bg-slate-800"
                 role="tablist"
-                aria-label={t.atlas3d.sectionTitle}
+                aria-label={`${t.atlas3d.mode3d} / ${t.atlas3d.mode2d}`}
               >
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={atlas3dScene === 'spine'}
-                  onClick={() => handleSwitchScene('spine')}
-                  title={t.atlas3d.sceneSpine}
-                  className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors whitespace-nowrap ${
-                    atlas3dScene === 'spine'
-                      ? 'bg-sky-600 text-white shadow-2xs dark:bg-cyan-600'
-                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                  aria-selected={spineViewMode === '3d'}
+                  onClick={() => setSpineViewMode('3d')}
+                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors whitespace-nowrap ${
+                    spineViewMode === '3d'
+                      ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-700 dark:text-white'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                   }`}
                 >
-                  <Bone className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{t.atlas3d.sceneSpineShort}</span>
+                  <Box className="h-3 w-3 shrink-0" />
+                  <span>{t.atlas3d.mode3d}</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={atlas3dScene === 'brain'}
-                  onClick={() => handleSwitchScene('brain')}
-                  title={t.atlas3d.sceneBrain}
-                  className={`inline-flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-colors whitespace-nowrap ${
-                    atlas3dScene === 'brain'
-                      ? 'bg-sky-600 text-white shadow-2xs dark:bg-cyan-600'
-                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'
+                  aria-selected={spineViewMode === '2d'}
+                  onClick={() => setSpineViewMode('2d')}
+                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors whitespace-nowrap ${
+                    spineViewMode === '2d'
+                      ? 'bg-white text-slate-900 shadow-2xs dark:bg-slate-700 dark:text-white'
+                      : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
                   }`}
                 >
-                  <Brain className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{t.atlas3d.sceneBrainShort}</span>
+                  <GitBranch className="h-3 w-3 shrink-0" />
+                  <span>{t.atlas3d.mode2d}</span>
                 </button>
               </div>
+            </>
+          )}
+        </div>
 
+        {/* Right Side: 3D Context Layer Toggles (shown only in 3D mode) */}
+        {!is2DSpineActive && (
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setLayers((prev) => ({ ...prev, silhouette: !prev.silhouette }))}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                layers.silhouette
+                  ? 'border-sky-200 bg-sky-50/80 text-sky-900 dark:border-cyan-800/80 dark:bg-cyan-950/40 dark:text-cyan-200'
+                  : 'border-slate-200 bg-slate-50/60 text-slate-500 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400'
+              }`}
+            >
+              <span>
+                {atlas3dScene === 'spine'
+                  ? t.atlas3d.layerSilhouette
+                  : t.atlas3d.layerHeadSilhouette}
+              </span>
+              {layers.silhouette ? (
+                <Eye className="h-3 w-3 shrink-0 text-sky-600 dark:text-cyan-400" />
+              ) : (
+                <EyeOff className="h-3 w-3 shrink-0 text-slate-400" />
+              )}
+            </button>
+
+            {atlas3dScene === 'spine' ? (
               <button
                 type="button"
-                onClick={() => setIsLeftPanelOpen(false)}
-                title={t.atlas3d.collapsePanel}
-                aria-label={t.atlas3d.collapsePanel}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
-              >
-                <PanelLeftClose className="h-3.5 w-3.5" />
-              </button>
-            </div>
-
-            {/* Compact Context / Layer Toggle Strip */}
-            <div className="grid grid-cols-2 gap-1.5 border-b border-slate-200/80 px-2 py-2 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => setLayers((prev) => ({ ...prev, silhouette: !prev.silhouette }))}
-                className={`inline-flex items-center justify-between gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors ${
-                  layers.silhouette
+                onClick={() => setLayers((prev) => ({ ...prev, muscles: !prev.muscles }))}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                  layers.muscles
                     ? 'border-sky-200 bg-sky-50/80 text-sky-900 dark:border-cyan-800/80 dark:bg-cyan-950/40 dark:text-cyan-200'
                     : 'border-slate-200 bg-slate-50/60 text-slate-500 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400'
                 }`}
               >
-                <span className="truncate">
-                  {atlas3dScene === 'spine'
-                    ? t.atlas3d.layerSilhouette
-                    : t.atlas3d.layerHeadSilhouette}
-                </span>
-                {layers.silhouette ? (
+                <span>{t.atlas3d.layerMuscles}</span>
+                {layers.muscles ? (
                   <Eye className="h-3 w-3 shrink-0 text-sky-600 dark:text-cyan-400" />
                 ) : (
                   <EyeOff className="h-3 w-3 shrink-0 text-slate-400" />
                 )}
               </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLayers((prev) => ({ ...prev, vessels: !prev.vessels }))}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition-colors whitespace-nowrap ${
+                  layers.vessels
+                    ? 'border-sky-200 bg-sky-50/80 text-sky-900 dark:border-cyan-800/80 dark:bg-cyan-950/40 dark:text-cyan-200'
+                    : 'border-slate-200 bg-slate-50/60 text-slate-500 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400'
+                }`}
+              >
+                <span>{t.atlas3d.layerVessels}</span>
+                {layers.vessels ? (
+                  <Eye className="h-3 w-3 shrink-0 text-sky-600 dark:text-cyan-400" />
+                ) : (
+                  <EyeOff className="h-3 w-3 shrink-0 text-slate-400" />
+                )}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-              {atlas3dScene === 'spine' ? (
-                <button
-                  type="button"
-                  onClick={() => setLayers((prev) => ({ ...prev, muscles: !prev.muscles }))}
-                  className={`inline-flex items-center justify-between gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors ${
-                    layers.muscles
-                      ? 'border-sky-200 bg-sky-50/80 text-sky-900 dark:border-cyan-800/80 dark:bg-cyan-950/40 dark:text-cyan-200'
-                      : 'border-slate-200 bg-slate-50/60 text-slate-500 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400'
-                  }`}
-                >
-                  <span className="truncate">{t.atlas3d.layerMuscles}</span>
-                  {layers.muscles ? (
-                    <Eye className="h-3 w-3 shrink-0 text-sky-600 dark:text-cyan-400" />
-                  ) : (
-                    <EyeOff className="h-3 w-3 shrink-0 text-slate-400" />
-                  )}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setLayers((prev) => ({ ...prev, vessels: !prev.vessels }))}
-                  className={`inline-flex items-center justify-between gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium transition-colors ${
-                    layers.vessels
-                      ? 'border-sky-200 bg-sky-50/80 text-sky-900 dark:border-cyan-800/80 dark:bg-cyan-950/40 dark:text-cyan-200'
-                      : 'border-slate-200 bg-slate-50/60 text-slate-500 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-400'
-                  }`}
-                >
-                  <span className="truncate">{t.atlas3d.layerVessels}</span>
-                  {layers.vessels ? (
-                    <Eye className="h-3 w-3 shrink-0 text-sky-600 dark:text-cyan-400" />
-                  ) : (
-                    <EyeOff className="h-3 w-3 shrink-0 text-slate-400" />
-                  )}
-                </button>
-              )}
-            </div>
-
+      {/* Main Spacious Workspace: Narrow Collapsible Left Panel (248px) + 3D Svitylo Viewport OR 2D Interactive Spine Map */}
+      <div className="relative flex min-h-0 flex-1 gap-3">
+        {/* NARROW COLLAPSIBLE LEFT COLUMN (248px) */}
+        {isLeftPanelOpen && (
+          <aside className="flex w-[248px] shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
             {/* Section List Subheader */}
-            <div className="flex items-center justify-between px-3 pt-2.5 pb-1.5">
+            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2 dark:border-slate-800">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                 {atlas3dScene === 'spine'
                   ? t.atlas3d.segmentsTitle
@@ -284,11 +357,13 @@ const Atlas3DView: React.FC = () => {
             </div>
 
             {/* Full-Height Scrollable Clinical List */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+            <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
               {atlas3dScene === 'spine' ? (
                 <div className="space-y-0.5">
                   {DETAILED_SPINE_SEGMENTS.map((seg) => {
-                    const isFocused = focusedSegmentId === seg.id;
+                    const isFocused = is2DSpineActive
+                      ? panel2DMode === 'segment' && (focusedSegmentId ?? activeSegment.id) === seg.id
+                      : focusedSegmentId === seg.id;
                     const p25 = seg.metrics.protrusion2025;
                     const p26 = seg.metrics.protrusion2026;
                     const metricText =
@@ -360,8 +435,8 @@ const Atlas3DView: React.FC = () => {
               )}
             </div>
 
-            {/* Subtle right-trapezius clinical cue only when back muscles are active */}
-            {atlas3dScene === 'spine' && layers.muscles && (
+            {/* Subtle right-trapezius clinical cue only when 3D back muscles are active */}
+            {!is2DSpineActive && atlas3dScene === 'spine' && layers.muscles && (
               <div className="border-t border-rose-200/70 bg-rose-50/70 px-2.5 py-1.5 text-[10px] leading-snug text-rose-900 dark:border-rose-900/60 dark:bg-rose-950/35 dark:text-rose-200">
                 {t.atlas3d.trapeziusBadge}
               </div>
@@ -369,67 +444,36 @@ const Atlas3DView: React.FC = () => {
           </aside>
         )}
 
-        {/* RIGHT / EXPANDED 3D VIEWPORT (Svitylo 3D Anatomy Atlas) */}
-        <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-[#0d1424] shadow-sm dark:border-slate-800">
-          <SvityloAtlasViewport
-            sceneMode={atlas3dScene}
-            language={language}
+        {/* RIGHT / MAIN VIEWPORT: Interactive 2D Spine Map OR Svitylo 3D Anatomy Atlas */}
+        {is2DSpineActive ? (
+          <Spine2DAtlasView
+            segments={DETAILED_SPINE_SEGMENTS}
             focusedSegmentId={focusedSegmentId}
-            focusedBrainId={focusedBrainId}
-            focusTriggerNonce={atlasFocusNonce + localFocusNonce}
-            cameraPresetRequest={cameraPresetRequest}
-            layers={layers}
-            onSelectSegmentFrom3D={handleSelectSegment}
-            onSelectBrainFrom3D={handleSelectBrain}
-            loadingLabel={t.atlas3d.loadingEngine}
+            activeSegment={activeSegment}
+            panelMode={panel2DMode}
+            selectedRegionId={selected2DRegion}
+            onSelectSegment={handleSelectSegment}
+            onSelectRegion={handleSelect2DRegion}
+            onShowOverview={handleShow2DOverview}
+            onJumpToMri={jumpToMriSegment}
+            language={language}
+            theme={theme}
+            t={t}
           />
-
-          {/* Top-Left Floating Expand Panel & Scene Pill (shown only when left panel is collapsed) */}
-          {!isLeftPanelOpen && (
-            <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setIsLeftPanelOpen(true)}
-                title={t.atlas3d.expandPanel}
-                aria-label={t.atlas3d.expandPanel}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700/90 bg-slate-900/92 px-2.5 py-1.5 text-xs font-semibold text-slate-100 shadow-md transition-colors hover:border-cyan-500/70 hover:bg-slate-800"
-              >
-                <PanelLeftOpen className="h-3.5 w-3.5 text-cyan-400" />
-                <span className="hidden sm:inline">
-                  {atlas3dScene === 'spine'
-                    ? t.atlas3d.segmentsTitle
-                    : t.atlas3d.brainPointsTitle}
-                </span>
-              </button>
-
-              <div className="inline-flex rounded-lg border border-slate-700/90 bg-slate-900/92 p-0.5 shadow-md">
-                <button
-                  type="button"
-                  onClick={() => handleSwitchScene('spine')}
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
-                    atlas3dScene === 'spine'
-                      ? 'bg-cyan-600 text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  <Bone className="h-3 w-3" />
-                  <span className="hidden sm:inline">{t.atlas3d.sceneSpineShort}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSwitchScene('brain')}
-                  className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors ${
-                    atlas3dScene === 'brain'
-                      ? 'bg-cyan-600 text-white'
-                      : 'text-slate-300 hover:text-white'
-                  }`}
-                >
-                  <Brain className="h-3 w-3" />
-                  <span className="hidden sm:inline">{t.atlas3d.sceneBrainShort}</span>
-                </button>
-              </div>
-            </div>
-          )}
+        ) : (
+          <section className="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/90 bg-[#0d1424] shadow-sm dark:border-slate-800">
+            <SvityloAtlasViewport
+              sceneMode={atlas3dScene}
+              language={language}
+              focusedSegmentId={focusedSegmentId}
+              focusedBrainId={focusedBrainId}
+              focusTriggerNonce={atlasFocusNonce + localFocusNonce}
+              cameraPresetRequest={cameraPresetRequest}
+              layers={layers}
+              onSelectSegmentFrom3D={handleSelectSegment}
+              onSelectBrainFrom3D={handleSelectBrain}
+              loadingLabel={t.atlas3d.loadingEngine}
+            />
 
           {/* Top-Right Clinical Detail Card — COLLAPSED BY DEFAULT as a compact clickable pill */}
           <div className="absolute top-3 right-3 z-10 flex flex-col items-end">
@@ -637,7 +681,8 @@ const Atlas3DView: React.FC = () => {
           >
             {t.atlas3d.attribution}
           </a>
-        </section>
+          </section>
+        )}
       </div>
     </div>
   );

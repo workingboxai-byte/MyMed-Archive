@@ -287,6 +287,26 @@ export interface UiDictionary {
     cardCategory: string;
     attribution: string;
     trapeziusBadge: string;
+    mode3d: string;
+    mode2d: string;
+    overviewButton: string;
+    overviewTitle: string;
+    overviewSubtitle: string;
+    mriBlockTitle: string;
+    neuroBlockTitle: string;
+    dermatomeLabel: string;
+    myotomeLabel: string;
+    neuroDisclaimer: string;
+    protrusionChangeLabel: string;
+    canalChangeLabel: string;
+    finding2026Label: string;
+    roots2026Label: string;
+    problemCountLabel: string;
+    negativeCountLabel: string;
+    newCountLabel: string;
+    stableCountLabel: string;
+    regionSegmentsLabel: string;
+    schematicHint: string;
   };
 }
 
@@ -613,6 +633,26 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       cardCategory: 'Тип знахідки',
       attribution: 'Svitylo 3D Anatomy Atlas · Z-Anatomy (CC BY-SA 4.0)',
       trapeziusBadge: 'Зміна сигналу верхньої трапеції справа (SOR 2026)',
+      mode3d: '3D',
+      mode2d: '2D-схема',
+      overviewButton: 'Весь хребет / Огляд відділів',
+      overviewTitle: 'Огляд відділів хребта',
+      overviewSubtitle: 'Зведення проблемних сегментів за даними МРТ SOR (2025 → 2026)',
+      mriBlockTitle: 'Динаміка МРТ (SOR 2025 → 2026)',
+      neuroBlockTitle: 'Доказова нейроанатомія (зона іннервації / дерматом)',
+      dermatomeLabel: 'Зона чутливості та болю',
+      myotomeLabel: 'Рухова іннервація (міотом)',
+      neuroDisclaimer: 'Довідкова нейроанатомія: співвідношення МРТ-знахідок зі скаргами потребує оцінки невролога.',
+      protrusionChangeLabel: 'Випинання / грижа',
+      canalChangeLabel: 'Сагітальний канал',
+      finding2026Label: 'Висновок 2026',
+      roots2026Label: 'Корінці / канал',
+      problemCountLabel: 'Проблемних',
+      negativeCountLabel: 'Погіршення',
+      newCountLabel: 'Нові зміни',
+      stableCountLabel: 'Стабільно',
+      regionSegmentsLabel: 'Сегменти відділу',
+      schematicHint: 'Бокова проєкція · Клік по диску або дужці відділу для деталізації',
     },
   },
 
@@ -938,6 +978,26 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       cardCategory: 'Тип находки',
       attribution: 'Svitylo 3D Anatomy Atlas · Z-Anatomy (CC BY-SA 4.0)',
       trapeziusBadge: 'Изменение сигнала верхней трапеции справа (SOR 2026)',
+      mode3d: '3D',
+      mode2d: '2D-схема',
+      overviewButton: 'Весь позвоночник / Обзор отделов',
+      overviewTitle: 'Обзор отделов позвоночника',
+      overviewSubtitle: 'Сводка проблемных сегментов по данным МРТ SOR (2025 → 2026)',
+      mriBlockTitle: 'Динамика МРТ (SOR 2025 → 2026)',
+      neuroBlockTitle: 'Доказательная нейроанатомия (зона иннервации / дерматом)',
+      dermatomeLabel: 'Зона чувствительности и боли',
+      myotomeLabel: 'Двигательная иннервация (миотом)',
+      neuroDisclaimer: 'Справочная нейроанатомия: сопоставление МРТ-находок с жалобами требует оценки невролога.',
+      protrusionChangeLabel: 'Выпячивание / грыжа',
+      canalChangeLabel: 'Сагиттальный канал',
+      finding2026Label: 'Заключение 2026',
+      roots2026Label: 'Корешки / канал',
+      problemCountLabel: 'Проблемных',
+      negativeCountLabel: 'Ухудшение',
+      newCountLabel: 'Новые изменения',
+      stableCountLabel: 'Стабильно',
+      regionSegmentsLabel: 'Сегменты отдела',
+      schematicHint: 'Боковая проекция · Клик по диску или скобке отдела для детализации',
     },
   },
 
@@ -1263,6 +1323,26 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       cardCategory: 'Finding Type',
       attribution: 'Svitylo 3D Anatomy Atlas · Z-Anatomy (CC BY-SA 4.0)',
       trapeziusBadge: 'Right upper trapezius signal change (SOR 2026)',
+      mode3d: '3D',
+      mode2d: '2D Map',
+      overviewButton: 'Full Spine / Regions Overview',
+      overviewTitle: 'Spine Regions Overview',
+      overviewSubtitle: 'Summary of affected segments from SOR MRI comparison (2025 → 2026)',
+      mriBlockTitle: 'MRI Dynamics (SOR 2025 → 2026)',
+      neuroBlockTitle: 'Evidence-Based Neuroanatomy (Innervation / Dermatome)',
+      dermatomeLabel: 'Sensory & Pain Distribution',
+      myotomeLabel: 'Motor Innervation (Myotome)',
+      neuroDisclaimer: 'Reference neuroanatomy: correlating MRI findings with symptoms requires clinical neurological exam.',
+      protrusionChangeLabel: 'Protrusion / Hernia',
+      canalChangeLabel: 'Sagittal Canal',
+      finding2026Label: '2026 Finding',
+      roots2026Label: 'Roots / Canal',
+      problemCountLabel: 'Affected',
+      negativeCountLabel: 'Progression',
+      newCountLabel: 'New Changes',
+      stableCountLabel: 'Stable',
+      regionSegmentsLabel: 'Segments in Region',
+      schematicHint: 'Lateral profile · Click any disc or region brace for clinical details',
     },
   },
 };
