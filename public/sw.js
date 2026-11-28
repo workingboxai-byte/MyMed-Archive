@@ -119,6 +119,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+  if (url.hostname.endsWith('.supabase.co')) return;
   if (isDevInternalRequest(url)) return;
 
   // 1. 3D Atlas assets (anatomy-data/): Runtime Cache-First (never precached at install)

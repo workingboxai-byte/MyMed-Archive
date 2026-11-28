@@ -23,6 +23,9 @@ import {
   RotateCcw,
   QrCode,
   WifiOff,
+  Cloud,
+  CloudOff,
+  RefreshCw,
 } from 'lucide-react';
 import { MedicalArchiveProvider, useMedicalArchive } from './context/MedicalArchiveContext';
 import { AnamnesisView } from './components/AnamnesisView';
@@ -35,6 +38,8 @@ import { JsonArchiveModal } from './components/JsonArchiveModal';
 import { PinUnlockModal } from './components/PinUnlockModal';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { QrCodeModal } from './components/QrCodeModal';
+import { CloudAuthModal } from './components/CloudAuthModal';
+import { SharedDoctorView } from './components/SharedDoctorView';
 import { PWAInstallButton } from './components/PWAInstallButton';
 import { useOnlineStatus } from './hooks/useOnlineStatus';
 import { Language, NavSection } from './types/medical';
@@ -69,6 +74,8 @@ const AppShell: React.FC = () => {
     attachments,
     toast,
     dismissToast,
+    cloudUser,
+    cloudSyncStatus,
   } = useMedicalArchive();
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -76,6 +83,7 @@ const AppShell: React.FC = () => {
   const [jsonModalOpen, setJsonModalOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const isOnline = useOnlineStatus();
 
   // Global Ctrl+K / Cmd+K Quick Search shortcut
@@ -342,6 +350,58 @@ const AppShell: React.FC = () => {
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
               {/* Compact PWA Install Button (shown when native install prompt is ready) */}
               <PWAInstallButton variant="header" />
+
+              {/* Compact Cloud Auth & Sync Status Button */}
+              <button
+                type="button"
+                onClick={() => setCloudModalOpen(true)}
+                title={
+                  cloudUser
+                    ? `${cloudUser.email || ''} — ${
+                        cloudSyncStatus === 'synced'
+                          ? t.cloud.statusSynced
+                          : cloudSyncStatus === 'syncing'
+                          ? t.cloud.statusSyncing
+                          : cloudSyncStatus === 'offline'
+                          ? t.cloud.statusOffline
+                          : t.cloud.statusError
+                      }`
+                    : t.cloud.headerSignInBtn
+                }
+                aria-label={t.cloud.headerSignInBtn}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs font-semibold transition-colors sm:px-2.5 whitespace-nowrap ${
+                  !cloudUser
+                    ? 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-white'
+                    : cloudSyncStatus === 'synced'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800/80 dark:bg-emerald-950/60 dark:text-emerald-300'
+                    : cloudSyncStatus === 'syncing'
+                    ? 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800/80 dark:bg-sky-950/60 dark:text-sky-300'
+                    : cloudSyncStatus === 'offline'
+                    ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/80 dark:bg-amber-950/60 dark:text-amber-300'
+                    : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800/80 dark:bg-rose-950/60 dark:text-rose-300'
+                }`}
+              >
+                {!cloudUser ? (
+                  <Cloud className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-cyan-400" />
+                ) : cloudSyncStatus === 'syncing' ? (
+                  <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin" />
+                ) : cloudSyncStatus === 'offline' ? (
+                  <CloudOff className="h-3.5 w-3.5 shrink-0" />
+                ) : (
+                  <Cloud className="h-3.5 w-3.5 shrink-0" />
+                )}
+                <span className="hidden lg:inline">
+                  {!cloudUser
+                    ? t.cloud.headerSignInBtn
+                    : cloudSyncStatus === 'syncing'
+                    ? t.cloud.statusSyncing
+                    : cloudSyncStatus === 'synced'
+                    ? t.cloud.statusSyncedShort
+                    : cloudSyncStatus === 'offline'
+                    ? t.cloud.statusOffline
+                    : t.cloud.statusError}
+                </span>
+              </button>
 
               {/* Global Quick Search Button (Ctrl+K) */}
               <button
@@ -641,8 +701,15 @@ const AppShell: React.FC = () => {
       {/* Global Quick Search Modal (Ctrl+K) */}
       <GlobalSearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      {/* Offline QR Code Modal */}
-      <QrCodeModal open={qrOpen} onClose={() => setQrOpen(false)} />
+      {/* Offline & 24h Cloud QR Code Modal */}
+      <QrCodeModal
+        open={qrOpen}
+        onClose={() => setQrOpen(false)}
+        onRequestSignIn={() => setCloudModalOpen(true)}
+      />
+
+      {/* Supabase Cloud Auth & Sync Modal */}
+      <CloudAuthModal open={cloudModalOpen} onClose={() => setCloudModalOpen(false)} />
 
       {/* JSON Import/Export/Reset Modal */}
       <JsonArchiveModal open={jsonModalOpen} onClose={() => setJsonModalOpen(false)} />
@@ -684,7 +751,36 @@ const AppShell: React.FC = () => {
   );
 };
 
+function readShareTokenFromUrl(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('share')?.trim();
+    return token ? token : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
+  const [shareToken, setShareToken] = useState<string | null>(() => readShareTokenFromUrl());
+
+  const handleExitShare = () => {
+    setShareToken(null);
+    if (typeof window !== 'undefined') {
+      const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  };
+
+  if (shareToken) {
+    return (
+      <MedicalArchiveProvider isShareView>
+        <SharedDoctorView shareToken={shareToken} onExitShare={handleExitShare} />
+      </MedicalArchiveProvider>
+    );
+  }
+
   return (
     <MedicalArchiveProvider>
       <AppShell />

@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { User } from '@supabase/supabase-js';
 import {
   AtlasSceneMode,
   AttachmentLink,
@@ -33,6 +34,12 @@ import {
   isValidPinHashRecord,
   verifyPinSha256,
 } from '../utils/privacyCrypto';
+import {
+  createDoctorShareRecord,
+  loadCloudMedicalCard,
+  saveCloudMedicalCard,
+  supabase,
+} from '../services/supabaseClient';
 
 const STORAGE_KEY = 'med_card_archive_state_v2';
 const LANG_STORAGE_KEY = 'med_card_archive_lang_v2';
@@ -42,13 +49,14 @@ const SECURITY_STORAGE_KEY = 'med_card_archive_security_v1';
 
 export type ThemeMode = 'light' | 'dark';
 export type PinModalMode = 'disable_privacy' | 'unlock_vault';
+export type CloudSyncStatus = 'local' | 'syncing' | 'synced' | 'error' | 'offline';
 
 interface StoredSecurityState {
   pinAuth: PinHashRecord | null;
   encryptedVault: EncryptedVaultPayload | null;
 }
 
-interface StoredState {
+export interface StoredState {
   rawMeta: RawMedicalCardJson['meta'];
   profile: PatientProfile;
   complaints: Record<ComplaintZoneKey, ComplaintZone>;
@@ -139,6 +147,26 @@ interface MedicalArchiveContextValue {
     next: Partial<Omit<PersonalVaultItem, 'id' | 'updatedAt'>>,
   ) => Promise<boolean>;
   deleteVaultItem: (id: string) => Promise<boolean>;
+  // Supabase Cloud Sync & 24h Temporary Doctor Share
+  cloudUser: User | null;
+  authLoading: boolean;
+  cloudSyncStatus: CloudSyncStatus;
+  cloudLastSyncedAt: string | null;
+  cloudSyncError: string | null;
+  signInWithEmail: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
+  signUpWithEmail: (
+    email: string,
+    password: string,
+  ) => Promise<{ ok: boolean; needsConfirmation?: boolean; error?: string }>;
+  signOutCloud: () => Promise<void>;
+  syncNowToCloud: () => Promise<boolean>;
+  createDoctorShareLink: () => Promise<{
+    ok: boolean;
+    url?: string;
+    token?: string;
+    expiresAt?: string;
+    error?: string;
+  }>;
 }
 
 const MedicalArchiveContext = createContext<MedicalArchiveContextValue | null>(null);
@@ -280,7 +308,7 @@ function normalizeRawJsonToState(raw: RawMedicalCardJson): StoredState {
   };
 }
 
-function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): StoredState {
+export function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): StoredState {
   const defaults = normalizeRawJsonToState(ANONYMIZED_DEFAULT_MEDICAL_CARD);
   if (!parsed || typeof parsed !== 'object') {
     return defaults;
@@ -323,7 +351,10 @@ function safeMergeStoredState(parsed: Partial<StoredState> | null | undefined): 
   };
 }
 
-export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const MedicalArchiveProvider: React.FC<{
+  children: React.ReactNode;
+  isShareView?: boolean;
+}> = ({ children, isShareView = false }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     try {
       const saved = localStorage.getItem(LANG_STORAGE_KEY);
@@ -444,14 +475,323 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     [],
   );
 
-  // Persist medical archive state strictly in browser localStorage
+  // Persist medical archive state strictly in browser localStorage (offline PWA)
   useEffect(() => {
+    if (isShareView) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
       // Ignore quota errors
     }
-  }, [state]);
+  }, [state, isShareView]);
+
+  // --- Supabase Cloud Auth & Auto-Sync ---
+  const [cloudUser, setCloudUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState<boolean>(!isShareView);
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<CloudSyncStatus>('local');
+  const [cloudLastSyncedAt, setCloudLastSyncedAt] = useState<string | null>(null);
+  const [cloudSyncError, setCloudSyncError] = useState<string | null>(null);
+
+  const cloudHydratedUserRef = useRef<string | null>(null);
+  const skipNextCloudUpsertRef = useRef<boolean>(false);
+  const cloudDebounceTimerRef = useRef<number | null>(null);
+  const pendingOfflineSyncRef = useRef<boolean>(false);
+
+  // Initialize Supabase auth session & listen for auth state changes
+  useEffect(() => {
+    if (isShareView) {
+      setAuthLoading(false);
+      return;
+    }
+
+    let active = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return;
+        const user = data.session?.user ?? null;
+        setCloudUser(user);
+        setAuthLoading(false);
+        if (!user) {
+          setCloudSyncStatus('local');
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setAuthLoading(false);
+      });
+
+    const { data: authSub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      const nextUser = session?.user ?? null;
+      setCloudUser(nextUser);
+      if (!nextUser) {
+        cloudHydratedUserRef.current = null;
+        pendingOfflineSyncRef.current = false;
+        setCloudSyncStatus('local');
+        setCloudSyncError(null);
+      }
+    });
+
+    return () => {
+      active = false;
+      authSub.subscription.unsubscribe();
+    };
+  }, [isShareView]);
+
+  // On user sign-in: load cloud medical_cards row, or upload existing localStorage data if cloud is empty
+  useEffect(() => {
+    if (isShareView || !cloudUser) return;
+    if (cloudHydratedUserRef.current === cloudUser.id) return;
+
+    let cancelled = false;
+    const userId = cloudUser.id;
+
+    const hydrateFromCloud = async () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setCloudSyncStatus('offline');
+        pendingOfflineSyncRef.current = true;
+        return;
+      }
+
+      setCloudSyncStatus('syncing');
+      setCloudSyncError(null);
+
+      const loaded = await loadCloudMedicalCard(userId);
+      if (cancelled) return;
+
+      if (loaded.error) {
+        setCloudSyncStatus('error');
+        setCloudSyncError(loaded.error);
+        return;
+      }
+
+      if (loaded.data) {
+        // Cloud card exists: hydrate local state & localStorage without echo-upserting
+        const merged = safeMergeStoredState(loaded.data);
+        skipNextCloudUpsertRef.current = true;
+        cloudHydratedUserRef.current = userId;
+        setState(merged);
+        setCloudSyncStatus('synced');
+        setCloudLastSyncedAt(loaded.updatedAt ?? new Date().toISOString());
+      } else {
+        // No cloud record yet: immediately push existing localStorage card to Supabase
+        const uploaded = await saveCloudMedicalCard(userId, stateRef.current);
+        if (cancelled) return;
+        if (uploaded.error) {
+          setCloudSyncStatus('error');
+          setCloudSyncError(uploaded.error);
+          return;
+        }
+        cloudHydratedUserRef.current = userId;
+        setCloudSyncStatus('synced');
+        setCloudLastSyncedAt(uploaded.updatedAt ?? new Date().toISOString());
+        showToast(UI_DICT[language].cloud.uploadedLocalToast, 'success');
+      }
+    };
+
+    hydrateFromCloud();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cloudUser, isShareView, language, showToast]);
+
+  // Debounced (~1.5s) cloud upsert whenever local state changes while authenticated
+  useEffect(() => {
+    if (isShareView || !cloudUser) return;
+    if (cloudHydratedUserRef.current !== cloudUser.id) return;
+
+    if (skipNextCloudUpsertRef.current) {
+      skipNextCloudUpsertRef.current = false;
+      return;
+    }
+
+    if (cloudDebounceTimerRef.current !== null) {
+      window.clearTimeout(cloudDebounceTimerRef.current);
+      cloudDebounceTimerRef.current = null;
+    }
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      pendingOfflineSyncRef.current = true;
+      setCloudSyncStatus('offline');
+      return;
+    }
+
+    setCloudSyncStatus('syncing');
+    setCloudSyncError(null);
+
+    const userId = cloudUser.id;
+    cloudDebounceTimerRef.current = window.setTimeout(async () => {
+      cloudDebounceTimerRef.current = null;
+      const saved = await saveCloudMedicalCard(userId, stateRef.current);
+      if (saved.error) {
+        setCloudSyncStatus('error');
+        setCloudSyncError(saved.error);
+      } else {
+        pendingOfflineSyncRef.current = false;
+        setCloudSyncStatus('synced');
+        setCloudLastSyncedAt(saved.updatedAt ?? new Date().toISOString());
+      }
+    }, 1500);
+
+    return () => {
+      if (cloudDebounceTimerRef.current !== null) {
+        window.clearTimeout(cloudDebounceTimerRef.current);
+        cloudDebounceTimerRef.current = null;
+      }
+    };
+  }, [state, cloudUser, isShareView]);
+
+  // Automatically flush pending offline edits when internet connection returns
+  useEffect(() => {
+    if (isShareView || !cloudUser) return;
+    const handleBackOnline = async () => {
+      if (!pendingOfflineSyncRef.current && cloudHydratedUserRef.current === cloudUser.id) {
+        return;
+      }
+      setCloudSyncStatus('syncing');
+      const saved = await saveCloudMedicalCard(cloudUser.id, stateRef.current);
+      if (saved.error) {
+        setCloudSyncStatus('error');
+        setCloudSyncError(saved.error);
+      } else {
+        pendingOfflineSyncRef.current = false;
+        cloudHydratedUserRef.current = cloudUser.id;
+        setCloudSyncStatus('synced');
+        setCloudLastSyncedAt(saved.updatedAt ?? new Date().toISOString());
+      }
+    };
+    window.addEventListener('online', handleBackOnline);
+    return () => window.removeEventListener('online', handleBackOnline);
+  }, [cloudUser, isShareView]);
+
+  const signInWithEmail = useCallback(
+    async (email: string, password: string): Promise<{ ok: boolean; error?: string }> => {
+      const cleanEmail = email.trim();
+      if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        return { ok: false, error: UI_DICT[language].cloud.invalidEmailError };
+      }
+      if (password.length < 6) {
+        return { ok: false, error: UI_DICT[language].cloud.shortPasswordError };
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) {
+        return { ok: false, error: error.message || UI_DICT[language].cloud.authGenericError };
+      }
+
+      showToast(UI_DICT[language].cloud.signedInToast, 'success');
+      return { ok: true };
+    },
+    [language, showToast],
+  );
+
+  const signUpWithEmail = useCallback(
+    async (
+      email: string,
+      password: string,
+    ): Promise<{ ok: boolean; needsConfirmation?: boolean; error?: string }> => {
+      const cleanEmail = email.trim();
+      if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+        return { ok: false, error: UI_DICT[language].cloud.invalidEmailError };
+      }
+      if (password.length < 6) {
+        return { ok: false, error: UI_DICT[language].cloud.shortPasswordError };
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email: cleanEmail,
+        password,
+      });
+
+      if (error) {
+        return { ok: false, error: error.message || UI_DICT[language].cloud.authGenericError };
+      }
+
+      if (!data.session) {
+        return { ok: true, needsConfirmation: true };
+      }
+
+      showToast(UI_DICT[language].cloud.signedInToast, 'success');
+      return { ok: true, needsConfirmation: false };
+    },
+    [language, showToast],
+  );
+
+  const signOutCloud = useCallback(async () => {
+    if (cloudDebounceTimerRef.current !== null) {
+      window.clearTimeout(cloudDebounceTimerRef.current);
+      cloudDebounceTimerRef.current = null;
+    }
+    await supabase.auth.signOut();
+    cloudHydratedUserRef.current = null;
+    pendingOfflineSyncRef.current = false;
+    setCloudUser(null);
+    setCloudSyncStatus('local');
+    setCloudSyncError(null);
+    showToast(UI_DICT[language].cloud.signedOutToast, 'info');
+  }, [language, showToast]);
+
+  const syncNowToCloud = useCallback(async (): Promise<boolean> => {
+    if (!cloudUser) return false;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setCloudSyncStatus('offline');
+      return false;
+    }
+    setCloudSyncStatus('syncing');
+    setCloudSyncError(null);
+    const saved = await saveCloudMedicalCard(cloudUser.id, stateRef.current);
+    if (saved.error) {
+      setCloudSyncStatus('error');
+      setCloudSyncError(saved.error);
+      showToast(`${UI_DICT[language].cloud.syncFailedPrefix}: ${saved.error}`, 'error');
+      return false;
+    }
+    cloudHydratedUserRef.current = cloudUser.id;
+    pendingOfflineSyncRef.current = false;
+    setCloudSyncStatus('synced');
+    setCloudLastSyncedAt(saved.updatedAt ?? new Date().toISOString());
+    showToast(UI_DICT[language].cloud.syncedToast, 'success');
+    return true;
+  }, [cloudUser, language, showToast]);
+
+  const createDoctorShareLink = useCallback(async (): Promise<{
+    ok: boolean;
+    url?: string;
+    token?: string;
+    expiresAt?: string;
+    error?: string;
+  }> => {
+    if (!cloudUser) {
+      return { ok: false, error: UI_DICT[language].doctorShare.requireAuthTitle };
+    }
+    const created = await createDoctorShareRecord(cloudUser.id, stateRef.current);
+    if (created.error || !created.token) {
+      return {
+        ok: false,
+        error: created.error || UI_DICT[language].doctorShare.createError,
+      };
+    }
+
+    const baseUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}${window.location.pathname}`
+        : 'https://mymed-archive.local/';
+    const shareUrl = `${baseUrl}?share=${encodeURIComponent(created.token)}`;
+    showToast(UI_DICT[language].doctorShare.createdToast, 'success');
+
+    return {
+      ok: true,
+      url: shareUrl,
+      token: created.token,
+      expiresAt: created.expiresAt,
+    };
+  }, [cloudUser, language, showToast]);
 
   // Sync Tailwind dark class on <html>
   useEffect(() => {
@@ -1151,6 +1491,16 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     addVaultItem,
     updateVaultItem,
     deleteVaultItem,
+    cloudUser,
+    authLoading,
+    cloudSyncStatus,
+    cloudLastSyncedAt,
+    cloudSyncError,
+    signInWithEmail,
+    signUpWithEmail,
+    signOutCloud,
+    syncNowToCloud,
+    createDoctorShareLink,
   };
 
   return <MedicalArchiveContext.Provider value={value}>{children}</MedicalArchiveContext.Provider>;

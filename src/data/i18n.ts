@@ -471,6 +471,61 @@ export interface UiDictionary {
     downloadedToast: string;
     generationError: string;
   };
+  cloud: {
+    headerSignInBtn: string;
+    statusSynced: string;
+    statusSyncedShort: string;
+    statusSyncing: string;
+    statusOffline: string;
+    statusError: string;
+    statusLocal: string;
+    modalTitle: string;
+    modalSubtitle: string;
+    tabSignIn: string;
+    tabSignUp: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    passwordLabel: string;
+    passwordPlaceholder: string;
+    signInBtn: string;
+    signUpBtn: string;
+    signOutBtn: string;
+    syncNowBtn: string;
+    localNotice: string;
+    connectedAs: string;
+    lastSyncedLabel: string;
+    signedInToast: string;
+    signedOutToast: string;
+    uploadedLocalToast: string;
+    loadedCloudToast: string;
+    syncedToast: string;
+    checkEmailNotice: string;
+    invalidEmailError: string;
+    shortPasswordError: string;
+    authGenericError: string;
+    syncFailedPrefix: string;
+  };
+  doctorShare: {
+    tabLabel: string;
+    requireAuthTitle: string;
+    requireAuthBody: string;
+    openAuthBtn: string;
+    generateBtn: string;
+    regenerateBtn: string;
+    generatingLabel: string;
+    validUntilLabel: string;
+    vaultExcludedBadge: string;
+    scanHint: string;
+    createdToast: string;
+    createError: string;
+    readOnlyBadge: string;
+    sharedHeaderTitle: string;
+    sharedHeaderSubtitle: string;
+    loadingText: string;
+    expiredTitle: string;
+    expiredBody: string;
+    openMainAppBtn: string;
+  };
 }
 
 export const UI_DICT: Record<Language, UiDictionary> = {
@@ -977,6 +1032,61 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       downloadedToast: 'QR-код збережено у PNG',
       generationError: 'Не вдалося згенерувати QR-код',
     },
+    cloud: {
+      headerSignInBtn: 'Увійти / Хмара',
+      statusSynced: 'Збережено в хмарі',
+      statusSyncedShort: 'У хмарі',
+      statusSyncing: 'Синхронізація...',
+      statusOffline: 'Офлайн (локально)',
+      statusError: 'Помилка синхронізації',
+      statusLocal: 'Локально (без входу)',
+      modalTitle: 'Хмарна синхронізація',
+      modalSubtitle: 'Автоматичний бекап картки у Supabase із збереженням офлайн-роботи',
+      tabSignIn: 'Вхід',
+      tabSignUp: 'Реєстрація',
+      emailLabel: 'Email',
+      emailPlaceholder: 'name@example.com',
+      passwordLabel: 'Пароль',
+      passwordPlaceholder: 'Мінімум 6 символів',
+      signInBtn: 'Увійти',
+      signUpBtn: 'Створити акаунт',
+      signOutBtn: 'Вийти з акаунта',
+      syncNowBtn: 'Синхронізувати зараз',
+      localNotice: 'Без входу всі дані й надалі зберігаються локально у вашому браузері (localStorage).',
+      connectedAs: 'Ви увійшли як',
+      lastSyncedLabel: 'Остання синхронізація',
+      signedInToast: 'Вхід у хмару виконано',
+      signedOutToast: 'Ви вийшли з хмари. Локальні дані збережено',
+      uploadedLocalToast: 'Локальну картку синхронізовано у хмару',
+      loadedCloudToast: 'Картку завантажено з хмари',
+      syncedToast: 'Збережено в хмарі',
+      checkEmailNotice: 'Перевірте пошту для підтвердження реєстрації, а потім увійдіть.',
+      invalidEmailError: 'Введіть коректну адресу електронної пошти.',
+      shortPasswordError: 'Пароль має містити щонайменше 6 символів.',
+      authGenericError: 'Не вдалося виконати авторизацію. Перевірте дані.',
+      syncFailedPrefix: 'Помилка хмари',
+    },
+    doctorShare: {
+      tabLabel: 'Доступ для лікаря (24 год)',
+      requireAuthTitle: 'Потрібен вхід у хмарний акаунт',
+      requireAuthBody: 'Тимчасове посилання та QR-код на 24 години зберігають безпечний знімок картки у хмарі для перегляду лікарем без редагування.',
+      openAuthBtn: 'Увійти / Хмара',
+      generateBtn: 'Створити доступ на 24 год',
+      regenerateBtn: 'Оновити посилання (24 год)',
+      generatingLabel: 'Створення безпечного знімка...',
+      validUntilLabel: 'Дійсний до',
+      vaultExcludedBadge: 'Дані «Особистого сейфа» та PIN суворо виключені зі знімка',
+      scanHint: 'Лікар може відсканувати QR-код камерою та відкрити повну виписку у режимі лише читання',
+      createdToast: 'Тимчасовий доступ для лікаря на 24 год створено',
+      createError: 'Не вдалося створити тимчасове посилання',
+      readOnlyBadge: 'Лише читання · Тимчасовий доступ (24 год)',
+      sharedHeaderTitle: 'Тимчасовий доступ для лікаря',
+      sharedHeaderSubtitle: 'Безпечний знімок медичної картки без «Особистого сейфа» та редагування',
+      loadingText: 'Завантаження медичної картки для лікаря...',
+      expiredTitle: 'Посилання недійсне або термін дії вичерпано',
+      expiredBody: 'Тимчасовий доступ діє 24 години з моменту створення. Попросіть пацієнта згенерувати новий QR-код.',
+      openMainAppBtn: 'Відкрити MyMed Archive',
+    },
   },
 
   ru: {
@@ -1482,6 +1592,61 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       downloadedToast: 'QR-код сохранён в PNG',
       generationError: 'Не удалось сгенерировать QR-код',
     },
+    cloud: {
+      headerSignInBtn: 'Войти / Облако',
+      statusSynced: 'Сохранено в облаке',
+      statusSyncedShort: 'В облаке',
+      statusSyncing: 'Синхронизация...',
+      statusOffline: 'Офлайн (локально)',
+      statusError: 'Ошибка синхронизации',
+      statusLocal: 'Локально (без входа)',
+      modalTitle: 'Облачная синхронизация',
+      modalSubtitle: 'Автоматический бэкап карты в Supabase с сохранением офлайн-работы',
+      tabSignIn: 'Вход',
+      tabSignUp: 'Регистрация',
+      emailLabel: 'Email',
+      emailPlaceholder: 'name@example.com',
+      passwordLabel: 'Пароль',
+      passwordPlaceholder: 'Минимум 6 символов',
+      signInBtn: 'Войти',
+      signUpBtn: 'Создать аккаунт',
+      signOutBtn: 'Выйти из аккаунта',
+      syncNowBtn: 'Синхронизировать сейчас',
+      localNotice: 'Без входа все данные продолжают храниться локально в вашем браузере (localStorage).',
+      connectedAs: 'Вы вошли как',
+      lastSyncedLabel: 'Последняя синхронизация',
+      signedInToast: 'Вход в облако выполнен',
+      signedOutToast: 'Вы вышли из облака. Локальные данные сохранены',
+      uploadedLocalToast: 'Локальная карта синхронизирована в облако',
+      loadedCloudToast: 'Карта загружена из облака',
+      syncedToast: 'Сохранено в облаке',
+      checkEmailNotice: 'Проверьте почту для подтверждения регистрации, затем войдите.',
+      invalidEmailError: 'Введите корректный адрес электронной почты.',
+      shortPasswordError: 'Пароль должен содержать минимум 6 символов.',
+      authGenericError: 'Не удалось выполнить вход. Проверьте данные.',
+      syncFailedPrefix: 'Ошибка облака',
+    },
+    doctorShare: {
+      tabLabel: 'Доступ для врача (24 ч)',
+      requireAuthTitle: 'Требуется вход в облачный аккаунт',
+      requireAuthBody: 'Временная ссылка и QR-код на 24 часа сохраняют безопасный снимок карты в облаке для просмотра врачом без редактирования.',
+      openAuthBtn: 'Войти / Облако',
+      generateBtn: 'Создать доступ на 24 ч',
+      regenerateBtn: 'Обновить ссылку (24 ч)',
+      generatingLabel: 'Создание безопасного снимка...',
+      validUntilLabel: 'Действителен до',
+      vaultExcludedBadge: 'Данные «Личного сейфа» и PIN строго исключены из снимка',
+      scanHint: 'Врач может отсканировать QR-код камерой и открыть полную выписку в режиме только чтения',
+      createdToast: 'Временный доступ для врача на 24 ч создан',
+      createError: 'Не удалось создать временную ссылку',
+      readOnlyBadge: 'Только чтение · Временный доступ (24 ч)',
+      sharedHeaderTitle: 'Временный доступ для врача',
+      sharedHeaderSubtitle: 'Безопасный снимок медицинской карты без «Личного сейфа» и редактирования',
+      loadingText: 'Загрузка медицинской карты для врача...',
+      expiredTitle: 'Ссылка недействительна или срок действия истёк',
+      expiredBody: 'Временный доступ действует 24 часа с момента создания. Попросите пациента сгенерировать новый QR-код.',
+      openMainAppBtn: 'Открыть MyMed Archive',
+    },
   },
 
   en: {
@@ -1986,6 +2151,61 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       downloadPngBtn: 'Download QR (PNG)',
       downloadedToast: 'QR code saved as PNG',
       generationError: 'Failed to generate QR code',
+    },
+    cloud: {
+      headerSignInBtn: 'Sign In / Cloud',
+      statusSynced: 'Saved to cloud',
+      statusSyncedShort: 'Synced',
+      statusSyncing: 'Syncing...',
+      statusOffline: 'Offline (local)',
+      statusError: 'Sync error',
+      statusLocal: 'Local only',
+      modalTitle: 'Cloud Synchronization',
+      modalSubtitle: 'Automatic Supabase backup while keeping full offline PWA access',
+      tabSignIn: 'Sign In',
+      tabSignUp: 'Sign Up',
+      emailLabel: 'Email',
+      emailPlaceholder: 'name@example.com',
+      passwordLabel: 'Password',
+      passwordPlaceholder: 'Minimum 6 characters',
+      signInBtn: 'Sign In',
+      signUpBtn: 'Create Account',
+      signOutBtn: 'Sign Out',
+      syncNowBtn: 'Sync Now',
+      localNotice: 'Without signing in, all data continues to be stored locally in your browser (localStorage).',
+      connectedAs: 'Signed in as',
+      lastSyncedLabel: 'Last synced',
+      signedInToast: 'Signed in to cloud sync',
+      signedOutToast: 'Signed out. Local data remains intact',
+      uploadedLocalToast: 'Local medical card synced to cloud',
+      loadedCloudToast: 'Medical card loaded from cloud',
+      syncedToast: 'Saved to cloud',
+      checkEmailNotice: 'Check your email to confirm registration, then sign in.',
+      invalidEmailError: 'Please enter a valid email address.',
+      shortPasswordError: 'Password must be at least 6 characters long.',
+      authGenericError: 'Authentication failed. Please check your credentials.',
+      syncFailedPrefix: 'Cloud error',
+    },
+    doctorShare: {
+      tabLabel: 'Doctor Access (24h)',
+      requireAuthTitle: 'Cloud account sign-in required',
+      requireAuthBody: 'A 24-hour temporary link and QR code store a safe read-only snapshot in the cloud for your doctor to review.',
+      openAuthBtn: 'Sign In / Cloud',
+      generateBtn: 'Create 24h Access Link',
+      regenerateBtn: 'Generate New Link (24h)',
+      generatingLabel: 'Creating safe snapshot...',
+      validUntilLabel: 'Valid until',
+      vaultExcludedBadge: 'Personal Vault data and PIN are strictly excluded from the snapshot',
+      scanHint: 'Your doctor can scan this QR code to open a read-only clinical dossier',
+      createdToast: '24-hour doctor access link created',
+      createError: 'Failed to create temporary share link',
+      readOnlyBadge: 'Read-only · Temporary 24h Access',
+      sharedHeaderTitle: 'Temporary Doctor Access',
+      sharedHeaderSubtitle: 'Safe read-only medical card snapshot without Personal Vault or editing',
+      loadingText: 'Loading shared medical card for doctor...',
+      expiredTitle: 'Link is invalid or has expired',
+      expiredBody: 'Temporary doctor access expires after 24 hours. Please ask the patient to generate a fresh QR code.',
+      openMainAppBtn: 'Open MyMed Archive',
     },
   },
 };
