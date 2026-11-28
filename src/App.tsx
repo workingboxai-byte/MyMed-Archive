@@ -15,6 +15,7 @@ import {
   Info,
   Eye,
   EyeOff,
+  Lock,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ import { TreatmentsView } from './components/TreatmentsView';
 import { LinksArchiveView } from './components/LinksArchiveView';
 import { DoctorView } from './components/DoctorView';
 import { JsonArchiveModal } from './components/JsonArchiveModal';
+import { PinUnlockModal } from './components/PinUnlockModal';
 import { Language, NavSection } from './types/medical';
 
 const Atlas3DView = lazy(() => import('./components/Atlas3DView'));
@@ -48,6 +50,7 @@ const AppShell: React.FC = () => {
     toggleTheme,
     privacyMode,
     togglePrivacyMode,
+    hasPin,
     t,
     profile,
     activeSection,
@@ -298,7 +301,13 @@ const AppShell: React.FC = () => {
               <button
                 type="button"
                 onClick={togglePrivacyMode}
-                title={privacyMode ? t.actions.privacyActive : t.actions.privacyMode}
+                title={
+                  privacyMode
+                    ? hasPin
+                      ? t.privacyVault.privacyLockedHint
+                      : t.actions.privacyActive
+                    : t.actions.privacyMode
+                }
                 aria-pressed={privacyMode}
                 className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
                   privacyMode
@@ -307,7 +316,11 @@ const AppShell: React.FC = () => {
                 }`}
               >
                 {privacyMode ? (
-                  <EyeOff className="h-3.5 w-3.5 shrink-0" />
+                  hasPin ? (
+                    <Lock className="h-3.5 w-3.5 shrink-0" />
+                  ) : (
+                    <EyeOff className="h-3.5 w-3.5 shrink-0" />
+                  )
                 ) : (
                   <Eye className="h-3.5 w-3.5 shrink-0" />
                 )}
@@ -380,6 +393,9 @@ const AppShell: React.FC = () => {
 
       {/* JSON Import/Export/Reset Modal */}
       <JsonArchiveModal open={jsonModalOpen} onClose={() => setJsonModalOpen(false)} />
+
+      {/* PIN Unlock Modal for Privacy Mode & Personal Vault */}
+      <PinUnlockModal />
 
       {/* Transient Toast Notification */}
       {toast && (

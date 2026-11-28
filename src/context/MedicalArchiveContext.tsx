@@ -1,13 +1,16 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AtlasSceneMode,
   AttachmentLink,
   ComplaintZone,
   ComplaintZoneKey,
+  EncryptedVaultPayload,
   Language,
   MedicalExamRecord,
   NavSection,
   PatientProfile,
+  PersonalVaultItem,
+  PinHashRecord,
   PrescribedMedication,
   RawMedicalCardJson,
   TreatmentCourse,
@@ -21,13 +24,28 @@ import {
   parseOtherRecordsIndex,
 } from '../data/recordsLocalization';
 import { UI_DICT, UiDictionary } from '../data/i18n';
+import {
+  decryptVaultItems,
+  encryptVaultItems,
+  hashPinSha256,
+  isValidEncryptedVaultPayload,
+  isValidPinHashRecord,
+  verifyPinSha256,
+} from '../utils/privacyCrypto';
 
 const STORAGE_KEY = 'med_card_archive_state_v2';
 const LANG_STORAGE_KEY = 'med_card_archive_lang_v2';
 const THEME_STORAGE_KEY = 'med_card_archive_theme_v2';
 const PRIVACY_STORAGE_KEY = 'med_card_archive_privacy_v2';
+const SECURITY_STORAGE_KEY = 'med_card_archive_security_v1';
 
 export type ThemeMode = 'light' | 'dark';
+export type PinModalMode = 'disable_privacy' | 'unlock_vault';
+
+interface StoredSecurityState {
+  pinAuth: PinHashRecord | null;
+  encryptedVault: EncryptedVaultPayload | null;
+}
 
 interface StoredState {
   rawMeta: RawMedicalCardJson['meta'];
@@ -86,6 +104,26 @@ interface MedicalArchiveContextValue {
   resetToInitialJson: () => void;
   toast: ToastMessage | null;
   showToast: (text: string, tone?: ToastMessage['tone']) => void;
+  // Privacy PIN (SHA-256) & Encrypted Personal Vault (AES-GCM)
+  hasPin: boolean;
+  hasEncryptedVault: boolean;
+  encryptedVaultCount: number;
+  vaultUnlocked: boolean;
+  vaultItems: PersonalVaultItem[];
+  pinModalRequest: PinModalMode | null;
+  closePinModal: () => void;
+  requestUnlockVault: () => void;
+  lockVault: () => void;
+  verifyAndUnlockWithPin: (pin: string) => Promise<{ ok: boolean; error?: string }>;
+  setupPin: (newPin: string) => Promise<{ ok: boolean; error?: string }>;
+  changePin: (currentPin: string, newPin: string) => Promise<{ ok: boolean; error?: string }>;
+  removePin: (currentPin: string) => Promise<{ ok: boolean; error?: string }>;
+  addVaultItem: (item: Omit<PersonalVaultItem, 'id' | 'updatedAt'>) => Promise<boolean>;
+  updateVaultItem: (
+    id: string,
+    next: Partial<Omit<PersonalVaultItem, 'id' | 'updatedAt'>>,
+  ) => Promise<boolean>;
+  deleteVaultItem: (id: string) => Promise<boolean>;
 }
 
 const MedicalArchiveContext = createContext<MedicalArchiveContextValue | null>(null);
@@ -264,6 +302,44 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     return normalizeRawJsonToState(ANONYMIZED_DEFAULT_MEDICAL_CARD);
   });
 
+  const [securityState, setSecurityState] = useState<StoredSecurityState>(() => {
+    try {
+      const saved = localStorage.getItem(SECURITY_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Partial<StoredSecurityState>;
+        return {
+          pinAuth: isValidPinHashRecord(parsed.pinAuth) ? parsed.pinAuth : null,
+          encryptedVault: isValidEncryptedVaultPayload(parsed.encryptedVault)
+            ? parsed.encryptedVault
+            : null,
+        };
+      }
+    } catch {
+      // Ignore storage errors
+    }
+    return { pinAuth: null, encryptedVault: null };
+  });
+
+  // Decrypted vault items and active PIN exist strictly in React memory (never persisted)
+  const [vaultUnlocked, setVaultUnlocked] = useState<boolean>(false);
+  const [vaultItems, setVaultItems] = useState<PersonalVaultItem[]>([]);
+  const [pinModalRequest, setPinModalRequest] = useState<PinModalMode | null>(null);
+  const activePinRef = useRef<string | null>(null);
+
+  const hasPin = Boolean(securityState.pinAuth);
+  const hasEncryptedVault = Boolean(
+    securityState.encryptedVault && (securityState.encryptedVault.itemCount ?? 1) > 0,
+  );
+  const encryptedVaultCount = securityState.encryptedVault?.itemCount ?? 0;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SECURITY_STORAGE_KEY, JSON.stringify(securityState));
+    } catch {
+      // Ignore quota errors
+    }
+  }, [securityState]);
+
   const showToast = useCallback((text: string, tone: ToastMessage['tone'] = 'info') => {
     const id = Date.now();
     setToast({ id, text, tone });
@@ -313,17 +389,250 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     setThemeState((prev) => (prev === 'light' ? 'dark' : 'light'));
   }, []);
 
-  const togglePrivacyMode = useCallback(() => {
-    setPrivacyModeState((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(PRIVACY_STORAGE_KEY, String(next));
-      } catch {
-        // Ignore storage errors
-      }
-      return next;
-    });
+  const persistPrivacyMode = useCallback((next: boolean) => {
+    setPrivacyModeState(next);
+    try {
+      localStorage.setItem(PRIVACY_STORAGE_KEY, String(next));
+    } catch {
+      // Ignore storage errors
+    }
   }, []);
+
+  const clearVaultMemory = useCallback(() => {
+    activePinRef.current = null;
+    setVaultUnlocked(false);
+    setVaultItems([]);
+  }, []);
+
+  const lockVault = useCallback(() => {
+    clearVaultMemory();
+    showToast(UI_DICT[language].privacyVault.vaultLockedToast, 'info');
+  }, [clearVaultMemory, language, showToast]);
+
+  const togglePrivacyMode = useCallback(() => {
+    if (!privacyMode) {
+      // Turning ON Privacy Mode always works in 1 click and immediately locks Personal Vault
+      persistPrivacyMode(true);
+      clearVaultMemory();
+      showToast(UI_DICT[language].privacyVault.privacyEnabledToast, 'info');
+      return;
+    }
+
+    // Turning OFF Privacy Mode requires PIN if one is configured
+    if (securityState.pinAuth) {
+      setPinModalRequest('disable_privacy');
+      return;
+    }
+
+    persistPrivacyMode(false);
+  }, [privacyMode, securityState.pinAuth, persistPrivacyMode, clearVaultMemory, language, showToast]);
+
+  const requestUnlockVault = useCallback(() => {
+    if (!securityState.pinAuth) return;
+    setPinModalRequest(privacyMode ? 'disable_privacy' : 'unlock_vault');
+  }, [securityState.pinAuth, privacyMode]);
+
+  const closePinModal = useCallback(() => {
+    setPinModalRequest(null);
+  }, []);
+
+  const verifyAndUnlockWithPin = useCallback(
+    async (pin: string): Promise<{ ok: boolean; error?: string }> => {
+      const trimmed = pin.trim();
+      if (!securityState.pinAuth) {
+        setPinModalRequest(null);
+        persistPrivacyMode(false);
+        return { ok: true };
+      }
+
+      const valid = await verifyPinSha256(trimmed, securityState.pinAuth);
+      if (!valid) {
+        return { ok: false, error: UI_DICT[language].privacyVault.pinWrongError };
+      }
+
+      // Decrypt vault if encrypted payload exists
+      let decryptedItems: PersonalVaultItem[] = [];
+      if (securityState.encryptedVault) {
+        try {
+          decryptedItems = await decryptVaultItems(securityState.encryptedVault, trimmed);
+        } catch {
+          return { ok: false, error: UI_DICT[language].privacyVault.pinWrongError };
+        }
+      }
+
+      const wasDisablingPrivacy = privacyMode || pinModalRequest === 'disable_privacy';
+      activePinRef.current = trimmed;
+      setVaultItems(decryptedItems);
+      setVaultUnlocked(true);
+      setPinModalRequest(null);
+
+      if (wasDisablingPrivacy) {
+        persistPrivacyMode(false);
+        showToast(UI_DICT[language].privacyVault.privacyUnlockedToast, 'success');
+      } else {
+        showToast(UI_DICT[language].privacyVault.vaultUnlockedToast, 'success');
+      }
+
+      return { ok: true };
+    },
+    [securityState, language, privacyMode, pinModalRequest, persistPrivacyMode, showToast],
+  );
+
+  const setupPin = useCallback(
+    async (newPin: string): Promise<{ ok: boolean; error?: string }> => {
+      const trimmed = newPin.trim();
+      if (trimmed.length < 4) {
+        return { ok: false, error: UI_DICT[language].privacyVault.pinMinLengthError };
+      }
+
+      const pinRecord = await hashPinSha256(trimmed);
+      setSecurityState((prev) => ({ ...prev, pinAuth: pinRecord }));
+
+      if (!privacyMode) {
+        activePinRef.current = trimmed;
+        setVaultUnlocked(true);
+        setVaultItems([]);
+      }
+
+      showToast(UI_DICT[language].privacyVault.pinSavedToast, 'success');
+      return { ok: true };
+    },
+    [language, privacyMode, showToast],
+  );
+
+  const changePin = useCallback(
+    async (currentPin: string, newPin: string): Promise<{ ok: boolean; error?: string }> => {
+      const cur = currentPin.trim();
+      const next = newPin.trim();
+      if (!securityState.pinAuth) {
+        return setupPin(next);
+      }
+      if (next.length < 4) {
+        return { ok: false, error: UI_DICT[language].privacyVault.pinMinLengthError };
+      }
+
+      const valid = await verifyPinSha256(cur, securityState.pinAuth);
+      if (!valid) {
+        return { ok: false, error: UI_DICT[language].privacyVault.pinWrongError };
+      }
+
+      // Decrypt existing vault (if any) with current PIN, then re-encrypt with new PIN
+      let itemsToReencrypt: PersonalVaultItem[] = vaultUnlocked ? vaultItems : [];
+      if (!vaultUnlocked && securityState.encryptedVault) {
+        try {
+          itemsToReencrypt = await decryptVaultItems(securityState.encryptedVault, cur);
+        } catch {
+          return { ok: false, error: UI_DICT[language].privacyVault.pinWrongError };
+        }
+      }
+
+      const nextPinRecord = await hashPinSha256(next);
+      const nextEncryptedVault =
+        itemsToReencrypt.length > 0 || securityState.encryptedVault
+          ? await encryptVaultItems(itemsToReencrypt, next)
+          : null;
+
+      setSecurityState({
+        pinAuth: nextPinRecord,
+        encryptedVault: nextEncryptedVault,
+      });
+
+      if (vaultUnlocked && !privacyMode) {
+        activePinRef.current = next;
+        setVaultItems(itemsToReencrypt);
+      }
+
+      showToast(UI_DICT[language].privacyVault.pinChangedToast, 'success');
+      return { ok: true };
+    },
+    [securityState, vaultUnlocked, vaultItems, privacyMode, language, setupPin, showToast],
+  );
+
+  const removePin = useCallback(
+    async (currentPin: string): Promise<{ ok: boolean; error?: string }> => {
+      const cur = currentPin.trim();
+      if (!securityState.pinAuth) {
+        return { ok: true };
+      }
+
+      const valid = await verifyPinSha256(cur, securityState.pinAuth);
+      if (!valid) {
+        return { ok: false, error: UI_DICT[language].privacyVault.pinWrongError };
+      }
+
+      // Never store vault data unencrypted: clear encrypted vault when disabling PIN protection
+      setSecurityState({ pinAuth: null, encryptedVault: null });
+      clearVaultMemory();
+      if (privacyMode) {
+        persistPrivacyMode(false);
+      }
+      showToast(UI_DICT[language].privacyVault.pinRemovedToast, 'info');
+      return { ok: true };
+    },
+    [securityState.pinAuth, language, clearVaultMemory, privacyMode, persistPrivacyMode, showToast],
+  );
+
+  const persistEncryptedVaultItems = useCallback(
+    async (nextItems: PersonalVaultItem[]): Promise<boolean> => {
+      const pin = activePinRef.current;
+      if (!pin || privacyMode || !vaultUnlocked) {
+        return false;
+      }
+      const encrypted = await encryptVaultItems(nextItems, pin);
+      setVaultItems(nextItems);
+      setSecurityState((prev) => ({
+        ...prev,
+        encryptedVault: encrypted,
+      }));
+      return true;
+    },
+    [privacyMode, vaultUnlocked],
+  );
+
+  const addVaultItem = useCallback(
+    async (item: Omit<PersonalVaultItem, 'id' | 'updatedAt'>): Promise<boolean> => {
+      const nextItem: PersonalVaultItem = {
+        ...item,
+        id: `vault-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        updatedAt: new Date().toISOString(),
+      };
+      const ok = await persistEncryptedVaultItems([nextItem, ...vaultItems]);
+      if (ok) {
+        showToast(UI_DICT[language].jsonModal.savedToast, 'success');
+      }
+      return ok;
+    },
+    [vaultItems, persistEncryptedVaultItems, language, showToast],
+  );
+
+  const updateVaultItem = useCallback(
+    async (
+      id: string,
+      next: Partial<Omit<PersonalVaultItem, 'id' | 'updatedAt'>>,
+    ): Promise<boolean> => {
+      const nextItems = vaultItems.map((entry) =>
+        entry.id === id ? { ...entry, ...next, updatedAt: new Date().toISOString() } : entry,
+      );
+      const ok = await persistEncryptedVaultItems(nextItems);
+      if (ok) {
+        showToast(UI_DICT[language].jsonModal.savedToast, 'success');
+      }
+      return ok;
+    },
+    [vaultItems, persistEncryptedVaultItems, language, showToast],
+  );
+
+  const deleteVaultItem = useCallback(
+    async (id: string): Promise<boolean> => {
+      const nextItems = vaultItems.filter((entry) => entry.id !== id);
+      const ok = await persistEncryptedVaultItems(nextItems);
+      if (ok) {
+        showToast(UI_DICT[language].jsonModal.deletedToast, 'info');
+      }
+      return ok;
+    },
+    [vaultItems, persistEncryptedVaultItems, language, showToast],
+  );
 
   const t = useMemo(() => UI_DICT[language], [language]);
 
@@ -499,6 +808,11 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
       attachments_and_links: state.attachments,
       extended_records: state.records,
       treatments: state.treatments,
+      // Export strictly SHA-256 PIN hash and AES-GCM encrypted vault ciphertext (never plaintext)
+      ...(securityState.pinAuth ? { privacy_security: securityState.pinAuth } : {}),
+      ...(securityState.encryptedVault
+        ? { encrypted_personal_vault: securityState.encryptedVault }
+        : {}),
     };
 
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
@@ -511,7 +825,7 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     showToast(UI_DICT[language].jsonModal.exportSuccess, 'success');
-  }, [state, language, showToast]);
+  }, [state, securityState, language, showToast]);
 
   const importJsonString = useCallback(
     (jsonText: string): { ok: boolean; error?: string } => {
@@ -533,13 +847,31 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
               ? normalized.treatments
               : prev.treatments,
         }));
+
+        // Restore encrypted vault & PIN hash if present in imported JSON; otherwise preserve local security state
+        const importedPin = isValidPinHashRecord(parsed.privacy_security)
+          ? parsed.privacy_security
+          : null;
+        const importedVault = isValidEncryptedVaultPayload(parsed.encrypted_personal_vault)
+          ? parsed.encrypted_personal_vault
+          : null;
+
+        if (importedPin || importedVault) {
+          setSecurityState((prev) => ({
+            pinAuth: importedPin ?? prev.pinAuth,
+            encryptedVault: importedVault ?? prev.encryptedVault,
+          }));
+          // Always lock vault on import so user unlocks with PIN
+          clearVaultMemory();
+        }
+
         showToast(UI_DICT[language].jsonModal.importSuccess, 'success');
         return { ok: true };
       } catch {
         return { ok: false, error: UI_DICT[language].jsonModal.importError };
       }
     },
-    [language, showToast],
+    [language, showToast, clearVaultMemory],
   );
 
   const resetToInitialJson = useCallback(() => {
@@ -594,6 +926,22 @@ export const MedicalArchiveProvider: React.FC<{ children: React.ReactNode }> = (
     resetToInitialJson,
     toast,
     showToast,
+    hasPin,
+    hasEncryptedVault,
+    encryptedVaultCount,
+    vaultUnlocked: !privacyMode && vaultUnlocked,
+    vaultItems: !privacyMode && vaultUnlocked ? vaultItems : [],
+    pinModalRequest,
+    closePinModal,
+    requestUnlockVault,
+    lockVault,
+    verifyAndUnlockWithPin,
+    setupPin,
+    changePin,
+    removePin,
+    addVaultItem,
+    updateVaultItem,
+    deleteVaultItem,
   };
 
   return <MedicalArchiveContext.Provider value={value}>{children}</MedicalArchiveContext.Provider>;

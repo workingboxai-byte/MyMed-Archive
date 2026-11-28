@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Download, Upload, RotateCcw, X, AlertCircle } from 'lucide-react';
+import { Download, Upload, RotateCcw, X, AlertCircle, Lock } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -9,7 +9,8 @@ interface JsonArchiveModalProps {
 }
 
 export const JsonArchiveModal: React.FC<JsonArchiveModalProps> = ({ open, onClose }) => {
-  const { t, exportJsonFile, importJsonString, resetToInitialJson } = useMedicalArchive();
+  const { t, hasEncryptedVault, exportJsonFile, importJsonString, resetToInitialJson } =
+    useMedicalArchive();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
@@ -112,6 +113,12 @@ export const JsonArchiveModal: React.FC<JsonArchiveModalProps> = ({ open, onClos
                 <p className="mt-0.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
                   {t.jsonModal.exportDesc}
                 </p>
+                {hasEncryptedVault && (
+                  <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                    <Lock className="h-3 w-3 shrink-0" />
+                    <span>{t.privacyVault.jsonEncryptedVaultNote}</span>
+                  </div>
+                )}
               </div>
               <button
                 type="button"

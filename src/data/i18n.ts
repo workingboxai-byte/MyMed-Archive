@@ -308,6 +308,81 @@ export interface UiDictionary {
     regionSegmentsLabel: string;
     schematicHint: string;
   };
+  privacyVault: {
+    // Profile PIN settings
+    pinSectionTitle: string;
+    pinSectionSubtitle: string;
+    pinStatusActive: string;
+    pinStatusNotSet: string;
+    pinHashHint: string;
+    setPinBtn: string;
+    changePinBtn: string;
+    removePinBtn: string;
+    currentPinLabel: string;
+    newPinLabel: string;
+    confirmPinLabel: string;
+    pinPlaceholder: string;
+    pinMinLengthError: string;
+    pinMismatchError: string;
+    pinWrongError: string;
+    pinSavedToast: string;
+    pinChangedToast: string;
+    pinRemovedToast: string;
+    removePinConfirmTitle: string;
+    removePinConfirmBody: string;
+    removePinWarningWithVault: string;
+    // Unlock modal
+    unlockPrivacyTitle: string;
+    unlockPrivacySubtitle: string;
+    unlockVaultTitle: string;
+    unlockVaultSubtitle: string;
+    enterPinLabel: string;
+    unlockButton: string;
+    privacyLockedHint: string;
+    privacyEnabledToast: string;
+    privacyUnlockedToast: string;
+    vaultUnlockedToast: string;
+    vaultLockedToast: string;
+    // Personal Vault card
+    vaultTitle: string;
+    vaultSubtitle: string;
+    vaultAesBadge: string;
+    vaultExcludedNotice: string;
+    vaultNoPinTitle: string;
+    vaultNoPinBody: string;
+    vaultLockedTitle: string;
+    vaultLockedPrivacyBody: string;
+    vaultLockedBody: string;
+    vaultLockedCountPrefix: string;
+    unlockWithPinBtn: string;
+    lockVaultBtn: string;
+    addItemBtn: string;
+    editItemTitle: string;
+    newItemTitle: string;
+    categoryLabel: string;
+    categories: {
+      vod: string;
+      vlk: string;
+      rezerv: string;
+      personal: string;
+    };
+    itemTitleLabel: string;
+    itemTitlePlaceholder: string;
+    itemDateLabel: string;
+    itemDatePlaceholder: string;
+    itemUrlsLabel: string;
+    itemUrlsPlaceholder: string;
+    itemNotesLabel: string;
+    itemNotesPlaceholder: string;
+    itemValidationError: string;
+    itemInvalidUrlError: string;
+    emptyVaultTitle: string;
+    emptyVaultBody: string;
+    deleteItemConfirmTitle: string;
+    deleteItemConfirmBody: string;
+    pagePrefix: string;
+    jsonEncryptedVaultNote: string;
+  };
 }
 
 export const UI_DICT: Record<Language, UiDictionary> = {
@@ -654,6 +729,78 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       regionSegmentsLabel: 'Сегменти відділу',
       schematicHint: 'Бокова проєкція · Клік по диску або дужці відділу для деталізації',
     },
+    privacyVault: {
+      pinSectionTitle: 'Захист PIN-кодом',
+      pinSectionSubtitle: 'Увімкнення «Режиму приватності» — в 1 клік, вимкнення та доступ до сейфа — лише за PIN-кодом.',
+      pinStatusActive: 'PIN-код активовано (SHA-256)',
+      pinStatusNotSet: 'PIN-код не задано',
+      pinHashHint: 'Зберігається лише солоний SHA-256 хеш (Web Crypto API), пароль у відкритому вигляді не записується.',
+      setPinBtn: 'Задати PIN-код',
+      changePinBtn: 'Змінити PIN',
+      removePinBtn: 'Вимкнути PIN',
+      currentPinLabel: 'Поточний PIN-код',
+      newPinLabel: 'Новий PIN-код (від 4 символів або 4 цифри)',
+      confirmPinLabel: 'Підтвердьте PIN-код',
+      pinPlaceholder: '••••',
+      pinMinLengthError: 'Введіть щонайменше 4 символи (наприклад, 4-значний PIN або короткий пароль).',
+      pinMismatchError: 'Введені PIN-коди не збігаються.',
+      pinWrongError: 'Невірний PIN-код. Спробуйте ще раз.',
+      pinSavedToast: 'PIN-код встановлено (SHA-256)',
+      pinChangedToast: 'PIN-код оновлено та сейф перешифровано',
+      pinRemovedToast: 'Захист PIN-кодом вимкнено',
+      removePinConfirmTitle: 'Вимкнути захист PIN-кодом?',
+      removePinConfirmBody: 'Для підтвердження введіть поточний PIN-код. Після вимкнення «Режим приватності» можна буде перемикати без пароля.',
+      removePinWarningWithVault: 'Увага: в «Особистому сейфі» є зашифровані записи. Щоб не зберігати їх у відкритому вигляді, при вимкненні PIN-коду вміст сейфа буде очищено.',
+      unlockPrivacyTitle: 'Вимкнути режим приватності',
+      unlockPrivacySubtitle: 'Введіть PIN-код, щоб повернути відображення ПІБ, чутливих даних та відкрити Особистий сейф.',
+      unlockVaultTitle: 'Розблокувати Особистий сейф',
+      unlockVaultSubtitle: 'Введіть PIN-код для розшифрування особистих документів (AES-GCM).',
+      enterPinLabel: 'PIN-код / пароль',
+      unlockButton: 'Розблокувати',
+      privacyLockedHint: 'Приватність активна (розблокування за PIN)',
+      privacyEnabledToast: 'Режим приватності увімкнено, сейф заблоковано',
+      privacyUnlockedToast: 'Режим приватності вимкнено',
+      vaultUnlockedToast: 'Особистий сейф розблоковано',
+      vaultLockedToast: 'Особистий сейф заблоковано',
+      vaultTitle: 'Особистий сейф',
+      vaultSubtitle: 'Зашифроване сховище для особистих посилань і нотаток (ВОД, довідка ВЛК, Резерв+).',
+      vaultAesBadge: 'AES-GCM шифрування',
+      vaultExcludedNotice: 'Ніколи не потрапляє у «Режим для лікаря / PDF» та у пошук',
+      vaultNoPinTitle: 'Задайте PIN-код для активації Особистого сейфа',
+      vaultNoPinBody: 'Усі записи сейфа (ВОД, ВЛК, Резерв+) шифруються локально алгоритмом AES-GCM за вашим PIN-кодом перед збереженням у localStorage та JSON-архів.',
+      vaultLockedTitle: 'Особистий сейф заблоковано',
+      vaultLockedPrivacyBody: 'Активний «Режим приватності» — вміст сейфа повністю приховано та зашифровано.',
+      vaultLockedBody: 'Вміст сейфа зашифровано (AES-GCM) і не відображається до введення PIN-коду.',
+      vaultLockedCountPrefix: 'Зашифрованих записів:',
+      unlockWithPinBtn: 'Розблокувати за PIN',
+      lockVaultBtn: 'Заблокувати сейф',
+      addItemBtn: 'Додати запис',
+      editItemTitle: 'Редагувати запис сейфа',
+      newItemTitle: 'Новий запис в Особистий сейф',
+      categoryLabel: 'Тип документа',
+      categories: {
+        vod: 'ВОД',
+        vlk: 'Довідка ВЛК',
+        rezerv: 'Резерв+',
+        personal: 'Особисте',
+      },
+      itemTitleLabel: 'Назва запису *',
+      itemTitlePlaceholder: 'Наприклад: Витяг Резерв+ або Постанова ВЛК',
+      itemDateLabel: 'Дата / термін дії',
+      itemDatePlaceholder: '2026-10-19',
+      itemUrlsLabel: 'Посилання (кожне з нового рядка)',
+      itemUrlsPlaceholder: 'https://drive.google.com/file/d/…',
+      itemNotesLabel: 'Особисті нотатки',
+      itemNotesPlaceholder: 'Номер документа, статус, коментар…',
+      itemValidationError: 'Вкажіть назву запису або додайте нотатку чи посилання.',
+      itemInvalidUrlError: 'Дозволені лише коректні посилання http:// або https://.',
+      emptyVaultTitle: 'Особистий сейф порожній',
+      emptyVaultBody: 'Додайте посилання на Google Диск, скани ВОД, довідку ВЛК, витяг Резерв+ або приватні нотатки — вони шифруються через AES-GCM автоматично.',
+      deleteItemConfirmTitle: 'Видалити запис із сейфа?',
+      deleteItemConfirmBody: 'Цей запис буде остаточно видалено із зашифрованого Особистого сейфа.',
+      pagePrefix: 'Посилання',
+      jsonEncryptedVaultNote: 'Особистий сейф експортується у JSON виключно в зашифрованому вигляді (AES-GCM).',
+    },
   },
 
   ru: {
@@ -999,6 +1146,78 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       regionSegmentsLabel: 'Сегменты отдела',
       schematicHint: 'Боковая проекция · Клик по диску или скобке отдела для детализации',
     },
+    privacyVault: {
+      pinSectionTitle: 'Защита PIN-кодом',
+      pinSectionSubtitle: 'Включение «Режима приватности» — в 1 клик, выключение и доступ к сейфу — только по PIN-коду.',
+      pinStatusActive: 'PIN-код активирован (SHA-256)',
+      pinStatusNotSet: 'PIN-код не задан',
+      pinHashHint: 'Хранится только солёный SHA-256 хэш (Web Crypto API), пароль в открытом виде не сохраняется.',
+      setPinBtn: 'Задать PIN-код',
+      changePinBtn: 'Изменить PIN',
+      removePinBtn: 'Отключить PIN',
+      currentPinLabel: 'Текущий PIN-код',
+      newPinLabel: 'Новый PIN-код (от 4 символов или 4 цифры)',
+      confirmPinLabel: 'Подтвердите PIN-код',
+      pinPlaceholder: '••••',
+      pinMinLengthError: 'Введите минимум 4 символа (например, 4-значный PIN или короткий пароль).',
+      pinMismatchError: 'Введённые PIN-коды не совпадают.',
+      pinWrongError: 'Неверный PIN-код. Попробуйте ещё раз.',
+      pinSavedToast: 'PIN-код установлен (SHA-256)',
+      pinChangedToast: 'PIN-код обновлён, сейф перешифрован',
+      pinRemovedToast: 'Защита PIN-кодом отключена',
+      removePinConfirmTitle: 'Отключить защиту PIN-кодом?',
+      removePinConfirmBody: 'Для подтверждения введите текущий PIN-код. После отключения «Режим приватности» можно будет переключать без пароля.',
+      removePinWarningWithVault: 'Внимание: в «Личном сейфе» есть зашифрованные записи. Чтобы не хранить их в открытом виде, при отключении PIN-кода содержимое сейфа будет очищено.',
+      unlockPrivacyTitle: 'Выключить режим приватности',
+      unlockPrivacySubtitle: 'Введите PIN-код, чтобы вернуть отображение ФИО, чувствительных данных и открыть Личный сейф.',
+      unlockVaultTitle: 'Разблокировать Личный сейф',
+      unlockVaultSubtitle: 'Введите PIN-код для расшифровки личных документов (AES-GCM).',
+      enterPinLabel: 'PIN-код / пароль',
+      unlockButton: 'Разблокировать',
+      privacyLockedHint: 'Приватность активна (разблокировка по PIN)',
+      privacyEnabledToast: 'Режим приватности включён, сейф заблокирован',
+      privacyUnlockedToast: 'Режим приватности выключен',
+      vaultUnlockedToast: 'Личный сейф разблокирован',
+      vaultLockedToast: 'Личный сейф заблокирован',
+      vaultTitle: 'Личный сейф',
+      vaultSubtitle: 'Зашифрованное хранилище для личных ссылок и заметок (ВОД, справка ВВК, Резерв+).',
+      vaultAesBadge: 'AES-GCM шифрование',
+      vaultExcludedNotice: 'Никогда не попадает в «Режим для врача / PDF» и в поиск',
+      vaultNoPinTitle: 'Задайте PIN-код для активации Личного сейфа',
+      vaultNoPinBody: 'Все записи сейфа (ВОД, ВВК, Резерв+) шифруются локально алгоритмом AES-GCM по вашему PIN-коду перед сохранением в localStorage и JSON-архив.',
+      vaultLockedTitle: 'Личный сейф заблокирован',
+      vaultLockedPrivacyBody: 'Активен «Режим приватности» — содержимое сейфа полностью скрыто и зашифровано.',
+      vaultLockedBody: 'Содержимое сейфа зашифровано (AES-GCM) и скрыто до ввода PIN-кода.',
+      vaultLockedCountPrefix: 'Зашифрованных записей:',
+      unlockWithPinBtn: 'Разблокировать по PIN',
+      lockVaultBtn: 'Заблокировать сейф',
+      addItemBtn: 'Добавить запись',
+      editItemTitle: 'Редактировать запись сейфа',
+      newItemTitle: 'Новая запись в Личный сейф',
+      categoryLabel: 'Тип документа',
+      categories: {
+        vod: 'ВОД',
+        vlk: 'Справка ВВК',
+        rezerv: 'Резерв+',
+        personal: 'Личное',
+      },
+      itemTitleLabel: 'Название записи *',
+      itemTitlePlaceholder: 'Например: Выписка Резерв+ или Постановление ВВК',
+      itemDateLabel: 'Дата / срок действия',
+      itemDatePlaceholder: '2026-10-19',
+      itemUrlsLabel: 'Ссылки (каждая с новой строки)',
+      itemUrlsPlaceholder: 'https://drive.google.com/file/d/…',
+      itemNotesLabel: 'Личные заметки',
+      itemNotesPlaceholder: 'Номер документа, статус, комментарий…',
+      itemValidationError: 'Укажите название записи или добавьте заметку / ссылку.',
+      itemInvalidUrlError: 'Разрешены только корректные ссылки http:// или https://.',
+      emptyVaultTitle: 'Личный сейф пуст',
+      emptyVaultBody: 'Добавьте ссылки на Google Диск, сканы ВОД, справку ВВК, выписку Резерв+ или приватные заметки — они автоматически шифруются через AES-GCM.',
+      deleteItemConfirmTitle: 'Удалить запись из сейфа?',
+      deleteItemConfirmBody: 'Эта запись будет безвозвратно удалена из зашифрованного Личного сейфа.',
+      pagePrefix: 'Ссылка',
+      jsonEncryptedVaultNote: 'Личный сейф экспортируется в JSON исключительно в зашифрованном виде (AES-GCM).',
+    },
   },
 
   en: {
@@ -1343,6 +1562,78 @@ export const UI_DICT: Record<Language, UiDictionary> = {
       stableCountLabel: 'Stable',
       regionSegmentsLabel: 'Segments in Region',
       schematicHint: 'Lateral profile · Click any disc or region brace for clinical details',
+    },
+    privacyVault: {
+      pinSectionTitle: 'PIN Protection',
+      pinSectionSubtitle: 'Enable Privacy Mode in 1 click; disabling it or opening the Personal Vault requires your PIN.',
+      pinStatusActive: 'PIN Active (SHA-256)',
+      pinStatusNotSet: 'No PIN Set',
+      pinHashHint: 'Only a salted SHA-256 hash (Web Crypto API) is stored — your raw PIN is never saved.',
+      setPinBtn: 'Set PIN',
+      changePinBtn: 'Change PIN',
+      removePinBtn: 'Disable PIN',
+      currentPinLabel: 'Current PIN',
+      newPinLabel: 'New PIN (at least 4 digits or characters)',
+      confirmPinLabel: 'Confirm PIN',
+      pinPlaceholder: '••••',
+      pinMinLengthError: 'Enter at least 4 characters (e.g., a 4-digit PIN or short passcode).',
+      pinMismatchError: 'PIN entries do not match.',
+      pinWrongError: 'Incorrect PIN. Please try again.',
+      pinSavedToast: 'PIN enabled (SHA-256)',
+      pinChangedToast: 'PIN updated and vault re-encrypted',
+      pinRemovedToast: 'PIN protection disabled',
+      removePinConfirmTitle: 'Disable PIN Protection?',
+      removePinConfirmBody: 'Enter your current PIN to confirm. Privacy Mode will then toggle without a passcode.',
+      removePinWarningWithVault: 'Warning: your Personal Vault contains encrypted entries. To avoid storing unencrypted private data, disabling PIN protection will clear the encrypted vault.',
+      unlockPrivacyTitle: 'Disable Privacy Mode',
+      unlockPrivacySubtitle: 'Enter your PIN to reveal patient identity, sensitive details, and access the Personal Vault.',
+      unlockVaultTitle: 'Unlock Personal Vault',
+      unlockVaultSubtitle: 'Enter your PIN to decrypt your private documents (AES-GCM).',
+      enterPinLabel: 'PIN / Passcode',
+      unlockButton: 'Unlock',
+      privacyLockedHint: 'Privacy active (PIN required to unlock)',
+      privacyEnabledToast: 'Privacy Mode enabled, Personal Vault locked',
+      privacyUnlockedToast: 'Privacy Mode disabled',
+      vaultUnlockedToast: 'Personal Vault unlocked',
+      vaultLockedToast: 'Personal Vault locked',
+      vaultTitle: 'Personal Vault',
+      vaultSubtitle: 'Encrypted storage for private links and notes (Military ID / VOD, VLK certificate, Rezerv+).',
+      vaultAesBadge: 'AES-GCM Encrypted',
+      vaultExcludedNotice: 'Never included in Doctor View / PDF or search',
+      vaultNoPinTitle: 'Set a PIN to enable the Personal Vault',
+      vaultNoPinBody: 'All vault items (VOD, VLK, Rezerv+) are encrypted locally with AES-GCM using your PIN before saving to localStorage and JSON backups.',
+      vaultLockedTitle: 'Personal Vault is Locked',
+      vaultLockedPrivacyBody: 'Privacy Mode is active — vault contents are hidden and encrypted.',
+      vaultLockedBody: 'Vault contents are encrypted (AES-GCM) and hidden until unlocked with your PIN.',
+      vaultLockedCountPrefix: 'Encrypted items:',
+      unlockWithPinBtn: 'Unlock with PIN',
+      lockVaultBtn: 'Lock Vault',
+      addItemBtn: 'Add Entry',
+      editItemTitle: 'Edit Vault Entry',
+      newItemTitle: 'New Personal Vault Entry',
+      categoryLabel: 'Document Type',
+      categories: {
+        vod: 'VOD',
+        vlk: 'VLK Certificate',
+        rezerv: 'Rezerv+',
+        personal: 'Personal',
+      },
+      itemTitleLabel: 'Entry Title *',
+      itemTitlePlaceholder: 'e.g., Rezerv+ Extract or VLK Board Decision',
+      itemDateLabel: 'Date / Validity',
+      itemDatePlaceholder: '2026-10-19',
+      itemUrlsLabel: 'Links (one per line)',
+      itemUrlsPlaceholder: 'https://drive.google.com/file/d/…',
+      itemNotesLabel: 'Private Notes',
+      itemNotesPlaceholder: 'Document number, status, private remarks…',
+      itemValidationError: 'Please enter a title or add at least one link or note.',
+      itemInvalidUrlError: 'Only valid http:// or https:// links are allowed.',
+      emptyVaultTitle: 'Personal Vault is empty',
+      emptyVaultBody: 'Add Google Drive links, VOD / VLK scans, Rezerv+ extracts, or private notes — everything is automatically encrypted with AES-GCM.',
+      deleteItemConfirmTitle: 'Delete vault entry?',
+      deleteItemConfirmBody: 'This item will be permanently removed from your encrypted Personal Vault.',
+      pagePrefix: 'Link',
+      jsonEncryptedVaultNote: 'The Personal Vault is exported into JSON strictly in AES-GCM encrypted form.',
     },
   },
 };

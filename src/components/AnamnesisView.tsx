@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pencil, Check, X, ArrowUpRight } from 'lucide-react';
 import { useMedicalArchive } from '../context/MedicalArchiveContext';
 import { COMPLAINT_TO_MRI_SEGMENTS } from '../data/spineSegmentsData';
 import { ComplaintZone, ComplaintZoneKey, PatientProfile } from '../types/medical';
+import { PersonalVaultCard, ProfilePinSecurityPanel } from './PersonalVaultCard';
 
 const ZONE_ORDER: ComplaintZoneKey[] = [
   'lumbar_sacral',
@@ -26,6 +27,8 @@ export const AnamnesisView: React.FC = () => {
   const {
     language,
     privacyMode,
+    togglePrivacyMode,
+    hasPin,
     t,
     meta,
     profile,
@@ -39,6 +42,13 @@ export const AnamnesisView: React.FC = () => {
   const [profileDraft, setProfileDraft] = useState<PatientProfile>(profile);
   const [editingZone, setEditingZone] = useState<ComplaintZoneKey | null>(null);
   const [zoneDraftText, setZoneDraftText] = useState('');
+  const [pinTriggerMode, setPinTriggerMode] = useState<'setup' | null>(null);
+
+  useEffect(() => {
+    if (privacyMode && editingProfile) {
+      setEditingProfile(false);
+    }
+  }, [privacyMode, editingProfile]);
 
   const currentYear = 2026;
   const age = Math.max(0, currentYear - profile.birth_year);
@@ -72,8 +82,18 @@ export const AnamnesisView: React.FC = () => {
   const blurClass = privacyMode ? 'blur-[5px] select-none transition-all' : 'transition-all';
 
   const startProfileEdit = () => {
+    if (privacyMode && hasPin) {
+      togglePrivacyMode();
+      return;
+    }
     setProfileDraft(profile);
     setEditingProfile(true);
+  };
+
+  const handleRequestPinSetupFromVault = () => {
+    setPinTriggerMode('setup');
+    const el = document.getElementById('profile-pin-security');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleDraftNameChange = (val: string) => {
@@ -443,6 +463,12 @@ export const AnamnesisView: React.FC = () => {
             </div>
           </form>
         )}
+
+        {/* PIN Protection Settings for Privacy Mode & Encrypted Personal Vault */}
+        <ProfilePinSecurityPanel
+          externalTriggerMode={pinTriggerMode}
+          onExternalTriggerHandled={() => setPinTriggerMode(null)}
+        />
       </section>
 
       {/* 4-Zone Clinical Complaints Grid with soft left colored accent stripes */}
@@ -558,6 +584,9 @@ export const AnamnesisView: React.FC = () => {
         </span>
         {meta.disclaimer[language]}
       </div>
+
+      {/* Encrypted Personal Vault (VOD / VLK / Rezerv+) at the bottom of Anamnesis & Profile */}
+      <PersonalVaultCard onRequestPinSetup={handleRequestPinSetupFromVault} />
     </div>
   );
 };

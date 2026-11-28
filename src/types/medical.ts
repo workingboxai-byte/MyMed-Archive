@@ -147,6 +147,38 @@ export interface TreatmentCourse {
   linkedRecordId: string;
 }
 
+export interface PinHashRecord {
+  version: 1;
+  algorithm: 'SHA-256';
+  salt: string;
+  hash: string;
+  updatedAt: string;
+}
+
+export interface EncryptedVaultPayload {
+  version: 1;
+  algorithm: 'AES-GCM';
+  kdf: 'PBKDF2-SHA256';
+  iterations: number;
+  salt: string;
+  iv: string;
+  ciphertext: string;
+  itemCount?: number;
+  updatedAt: string;
+}
+
+export type VaultItemCategory = 'vod' | 'vlk' | 'rezerv' | 'personal';
+
+export interface PersonalVaultItem {
+  id: string;
+  category: VaultItemCategory;
+  title: string;
+  date: string;
+  urls: string[];
+  notes: string;
+  updatedAt: string;
+}
+
 export interface MedicalCardMeta {
   schema_version: string;
   exported_at: string;
@@ -172,4 +204,7 @@ export interface RawMedicalCardJson {
   // Optional extended fields preserved on export/import
   extended_records?: MedicalExamRecord[];
   treatments?: TreatmentCourse[];
+  // Optional client-side privacy PIN hash (SHA-256) and AES-GCM encrypted Personal Vault
+  privacy_security?: PinHashRecord | null;
+  encrypted_personal_vault?: EncryptedVaultPayload | null;
 }
